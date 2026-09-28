@@ -1,6 +1,7 @@
 import { modeLabel } from '../../../shared/labels';
 import type { RotationEventDto } from '../../../shared/types';
 import { BrawlerAvatar, MapImage } from '../components/avatars';
+import { ModeLabel, modeTextStyle } from '../components/bs';
 import { Card, DocLink, EmptyState, ErrorState, LoadingState, Meter, PageHeader, Refetching } from '../components/ui';
 import { useRotation } from '../lib/api';
 import { fmtPct, fmtRelative, fmtRemaining, plural } from '../lib/format';
@@ -13,7 +14,7 @@ function EventCard({ event, now }: { event: RotationEventDto; now: number }) {
       <div className="flex items-start gap-3">
         <MapImage eventId={event.eventId} className="size-14 shrink-0" />
         <div className="min-w-0 flex-1">
-          <div className="text-[12px] font-medium text-ink-2">{modeLabel(event.mode)}</div>
+          <ModeLabel mode={event.mode} size={16} className="flex text-[12px] font-semibold" style={modeTextStyle(event.mode)} />
           <div className="truncate text-[17px] font-semibold tracking-tight">{event.map ?? modeLabel(event.mode)}</div>
           <div className="mt-0.5 text-[12px] text-ink-3">
             {upcoming ? `Commence dans ${fmtRemaining(event.startTime, now)}` : `Se termine dans ${fmtRemaining(event.endTime, now)}`}

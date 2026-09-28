@@ -8,7 +8,7 @@ import { useStatus } from '../lib/api';
 // Documentation intégrée. À TENIR À JOUR : toute fonctionnalité ajoutée, modifiée
 // ou retirée dans l'app doit être reflétée ici (voir CLAUDE.md).
 
-const DOC_VERSION = '1.1.3';
+const DOC_VERSION = '1.2.0';
 
 interface Section {
   id: string;
@@ -105,8 +105,9 @@ const SECTIONS: Section[] = [
             des brawlers.
           </li>
           <li>
-            <strong>Brawlify</strong> (site communautaire) : images des brawlers, maps et icônes, ainsi que la rareté des
-            brawlers. Tout fonctionne sans, les images étant alors remplacées par des initiales.
+            <strong>Brawlify</strong> (site communautaire) : images des brawlers, maps, icônes de profil, emblèmes des rangs
+            Ranked et icônes des modes de jeu, ainsi que la rareté des brawlers. Tout fonctionne sans, les images étant alors
+            remplacées par des initiales ou simplement masquées.
           </li>
           <li>
             <strong>Le dashboard lui-même</strong> : l’API ne garde aucun historique. Tout ce qui est « dans le temps » (courbes,
@@ -185,6 +186,29 @@ const SECTIONS: Section[] = [
           Ranked et Brawlers ; les autres pages sont dans « Plus ». Le sélecteur en haut change de joueur suivi. Chaque page
           a un lien « Aide » qui mène à sa section ici.
         </P>
+        <H3>Repères visuels du jeu</H3>
+        <List>
+          <li>
+            <strong>Pseudo</strong> : affiché dans la couleur choisie dans Brawl Stars (fournie par l’API). Les couleurs très
+            claires sont légèrement assombries pour rester lisibles sur fond blanc ; un pseudo blanc (couleur par défaut)
+            s’affiche en noir.
+          </li>
+          <li>
+            <strong>Rangs Ranked</strong> : chaque rang est accompagné de son emblème officiel (Bronze I … Pro).
+          </li>
+          <li>
+            <strong>Modes de jeu</strong> : icône officielle du mode ; dans la Rotation, le nom du mode prend sa couleur du jeu.
+          </li>
+          <li>
+            <strong>Gloire</strong> : palier traduit (« Gloire météorique I ») avec une pastille de couleur. L’API ne fournit
+            pas de couleur pour la gloire : chaque palier a une couleur choisie d’après son thème. Survole le palier pour voir
+            tes points de gloire.
+          </li>
+          <li>
+            <strong>Rareté des brawlers</strong> : pastille aux couleurs du jeu (vert rare, bleu super rare, violet épique,
+            rouge mythique, jaune légendaire…).
+          </li>
+        </List>
         <P>
           Sur cette page, le sommaire à gauche (sur ordinateur) suit ta lecture : la section affichée à l’écran y est mise en
           évidence au fil du défilement. La recherche filtre les sections par titre et par mots-clés.
@@ -968,6 +992,7 @@ const SECTIONS: Section[] = [
           ['Set (BO3)', 'Match classé au meilleur des 3 manches.'],
           ['File solo / équipe', 'Ranked lancé seul (soloRanked) ou avec des amis (teamRanked).'],
           ['Star player', 'Meilleur joueur de la partie selon le jeu.'],
+          ['Gloire', 'Progression de compte en 8 paliers de 3 niveaux (mondiale, lunaire, martienne, saturnienne, solaire, météorique, extraterrestre, Starr Force).'],
           ['Prestige', 'Palier franchi tous les 1 000 trophées sur un brawler.'],
           ['Buffies', 'Améliorations supplémentaires des gadgets, star powers et hypercharges.'],
           ['PP', 'Points de puissance, nécessaires pour monter de niveau.'],
@@ -984,6 +1009,14 @@ const SECTIONS: Section[] = [
     keywords: 'versions changelog nouveautés',
     body: (
       <>
+        <H3>1.2.0</H3>
+        <List>
+          <li>Pseudo affiché dans sa couleur Brawl Stars (barre latérale, Accueil, Comparer, Réglages).</li>
+          <li>Palier de gloire traduit et coloré, points de gloire au survol.</li>
+          <li>Emblèmes officiels des rangs Ranked (Accueil, Ranked, En direct, sets, Comparer).</li>
+          <li>Icônes des modes de jeu (sets, combats, tableaux par mode et par map, Rotation), nom du mode en couleur dans la Rotation.</li>
+          <li>Rareté des brawlers avec sa couleur du jeu.</li>
+        </List>
         <H3>1.1.3</H3>
         <List>
           <li>En direct : tuiles « Sets gagnés » et « Manches gagnées » plus explicites (« 2 sur 3 », défaites, pourcentage).</li>

@@ -1,8 +1,8 @@
 import clsx from 'clsx';
 import { RefreshCw } from 'lucide-react';
-import { tierName } from '../../../shared/labels';
 import { BrawlerAvatar } from '../components/avatars';
 import { BattleRow, SetRow } from '../components/battles';
+import { TierLabel } from '../components/bs';
 import { NextTierProgress } from '../components/ranked';
 import { streakLabel } from './Home';
 import { Button, Card, CardHeader, DocLink, EmptyState, ErrorState, LoadingState, PageHeader, Refetching, StatTile } from '../components/ui';
@@ -88,12 +88,18 @@ export function LivePage() {
         >
           {data.eloDelta === null ? '—' : fmtSigned(data.eloDelta)}
         </div>
-        <p className="mt-2 text-[14px] text-ink-2">
-          {data.eloStart !== null && data.eloNow !== null
-            ? `${fmtInt(data.eloStart)} → ${fmtInt(data.eloNow)} points · ${tierName(data.tier)}`
-            : data.eloNow !== null
-              ? `${fmtInt(data.eloNow)} points · ${tierName(data.tier)} (le point de départ de la session n’a pas été mesuré)`
-              : 'Points indisponibles.'}
+        <p className="mt-2 flex flex-wrap items-center gap-x-1.5 text-[14px] text-ink-2">
+          {data.eloNow !== null ? (
+            <>
+              <span>
+                {data.eloStart !== null ? `${fmtInt(data.eloStart)} → ${fmtInt(data.eloNow)}` : fmtInt(data.eloNow)} points ·
+              </span>
+              <TierLabel tier={data.tier} size={18} className="font-medium text-ink" />
+              {data.eloStart === null && <span>(le point de départ de la session n’a pas été mesuré)</span>}
+            </>
+          ) : (
+            'Points indisponibles.'
+          )}
         </p>
         {data.next.pointsToNext !== null && (
           <div className="mt-5 border-t border-line pt-4">

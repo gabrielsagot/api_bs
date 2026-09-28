@@ -14,6 +14,8 @@ const SOURCES: Record<string, (id: string) => string> = {
   gadget: (id) => `${CDN}/gadgets/borderless/${id}.png`,
   starpower: (id) => `${CDN}/star-powers/borderless/${id}.png`,
   gear: (id) => `${CDN}/gears/regular/${id}.png`,
+  rank: (id) => `${CDN}/ranked/tiered/${id}.png`,
+  mode: (id) => `${CDN}/game-modes/regular/${id}.png`,
 };
 
 const MISSING_RETRY_MS = 24 * 60 * 60 * 1000;

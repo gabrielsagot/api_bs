@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { battleTypeLabel, modeLabel, tierName } from '../../../shared/labels';
 import type { BattleDto, ParticipantDto, RankedSetDto } from '../../../shared/types';
 import { fmtDateTime, fmtDuration, fmtRelative, fmtSigned } from '../lib/format';
-import { BrawlerAvatar } from './avatars';
+import { BrawlerAvatar, ModeIcon, RankIcon } from './avatars';
 import { EloChange } from './ranked';
 import { Pill, ResultBadge, SetBadge } from './ui';
 
@@ -32,10 +32,19 @@ export function SetRow({ set, now, compact = false }: { set: RankedSetDto; now: 
       <BrawlerAvatar id={brawler?.brawlerId} name={brawler?.brawlerName} size={32} />
       <div className="min-w-0 flex-1">
         <div className="truncate text-[14px] font-medium">{set.map ?? modeLabel(set.mode)}</div>
-        <div className="truncate text-[12px] text-ink-2">
-          {modeLabel(set.mode)}
-          {set.type === 'teamRanked' && ' · en équipe'}
-          {set.tier !== null && ` · ${tierName(set.tier)}`}
+        <div className="flex min-w-0 items-center gap-1 text-[12px] text-ink-2">
+          <ModeIcon mode={set.mode} size={14} />
+          <span className="truncate">
+            {modeLabel(set.mode)}
+            {set.type === 'teamRanked' && ' · en équipe'}
+          </span>
+          {set.tier !== null && (
+            <>
+              <span aria-hidden>·</span>
+              <RankIcon tier={set.tier} size={14} />
+              <span className="shrink-0">{tierName(set.tier)}</span>
+            </>
+          )}
         </div>
       </div>
       {!compact && (
@@ -92,9 +101,12 @@ export function BattleRow({ battle, now }: { battle: BattleDto; now: number }) {
             <span className="truncate text-[14px] font-medium">{battle.map ?? modeLabel(battle.mode)}</span>
             {battle.starPlayer && <Star className="size-3.5 shrink-0 fill-[#eda100] text-[#eda100]" aria-label="Star player" />}
           </div>
-          <div className="truncate text-[12px] text-ink-2">
-            {modeLabel(battle.mode)} · {battle.brawlerName ?? '—'}
-            {battle.duration ? ` · ${fmtDuration(battle.duration)}` : ''}
+          <div className="flex min-w-0 items-center gap-1 text-[12px] text-ink-2">
+            <ModeIcon mode={battle.mode} size={14} />
+            <span className="truncate">
+              {modeLabel(battle.mode)} · {battle.brawlerName ?? '—'}
+              {battle.duration ? ` · ${fmtDuration(battle.duration)}` : ''}
+            </span>
           </div>
         </div>
         <span className="hidden sm:block">

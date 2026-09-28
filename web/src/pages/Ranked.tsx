@@ -1,8 +1,9 @@
 import { useState } from 'react';
-import { modeLabel, tierName } from '../../../shared/labels';
+import { tierName } from '../../../shared/labels';
 import type { DuoRow, RankedQueue } from '../../../shared/types';
 import { BrawlerAvatar } from '../components/avatars';
 import { SetRow } from '../components/battles';
+import { ModeLabel, TierLabel } from '../components/bs';
 import { EloChange, NextTierProgress, RankedProgressCard } from '../components/ranked';
 import { DataTable, type Column } from '../components/tables';
 import { BreakdownTable } from '../components/tables';
@@ -86,19 +87,19 @@ export function RankedPage() {
               />
               <StatTile
                 label="Rang actuel"
-                value={tierName(data.currentTier)}
+                value={<TierLabel tier={data.currentTier} size={26} className="max-w-full gap-2 text-[22px] xl:text-[25px]" />}
                 sub={data.startTier !== null ? `au départ : ${tierName(data.startTier)}` : undefined}
               />
               <StatTile
                 className="col-span-2 md:col-span-1"
                 label="Record de la saison"
-                value={tierName(data.profile.seasonBestTier ?? data.bestTier)}
+                value={<TierLabel tier={data.profile.seasonBestTier ?? data.bestTier} size={26} className="max-w-full gap-2 text-[22px] xl:text-[25px]" />}
                 sub={data.profile.seasonBestElo !== null ? `${fmtInt(data.profile.seasonBestElo)} points` : 'sur la période'}
               />
               <StatTile
                 className="col-span-2 md:col-span-1"
                 label="Record absolu"
-                value={tierName(data.profile.allTimeBestTier)}
+                value={<TierLabel tier={data.profile.allTimeBestTier} size={26} className="max-w-full gap-2 text-[22px] xl:text-[25px]" />}
                 sub={data.profile.allTimeBestElo !== null ? `${fmtInt(data.profile.allTimeBestElo)} points` : undefined}
               />
               <StatTile
@@ -187,7 +188,7 @@ export function RankedPage() {
                       <div className="flex items-baseline justify-between gap-2">
                         <div className="min-w-0">
                           <div className="truncate text-[14px] font-semibold">{pick.map}</div>
-                          <div className="truncate text-[12px] text-ink-2">{modeLabel(pick.mode)}</div>
+                          <ModeLabel mode={pick.mode} size={14} className="flex text-[12px] text-ink-2" />
                         </div>
                         <div className="shrink-0 text-right text-[12px] text-ink-2">
                           <span className="font-medium text-ink">{fmtPct(pick.winRate)}</span> · {plural(pick.games, 'manche')}

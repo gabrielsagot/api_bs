@@ -4,6 +4,7 @@ import { useState, type FormEvent, type ReactNode } from 'react';
 import { normalizeTag } from '../../../shared/tags';
 import type { KeyStatusDto } from '../../../shared/types';
 import { PlayerIcon } from '../components/avatars';
+import { PlayerName } from '../components/bs';
 import { Button, Card, CardHeader, DocLink, ErrorState, LoadingState, PageHeader, Pill } from '../components/ui';
 import {
   exportUrl,
@@ -107,7 +108,7 @@ export function SettingsPage() {
                 <PlayerIcon iconId={player.iconId} name={player.name} size={36} />
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-2">
-                    <span className="truncate text-[15px] font-medium">{player.name}</span>
+                    <PlayerName name={player.name} color={player.nameColor} minContrast={4.5} className="truncate text-[15px] font-medium" />
                     {player.isPrimary && <Pill tone="accent">Principal</Pill>}
                   </div>
                   <div className="truncate text-[13px] text-ink-2">
@@ -286,7 +287,7 @@ function BackupsCard({ demo }: { demo: boolean }) {
           <ul className="text-[14px]">
             {players.map((player) => (
               <li key={player.slug} className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1 border-t border-line py-2 first:border-t-0">
-                <span className="truncate font-medium">{player.name}</span>
+                <PlayerName name={player.name} color={player.nameColor} minContrast={4.5} className="truncate font-medium" />
                 <span className="flex gap-3 text-[13px]">
                   <a href={exportUrl(player.slug, 'combats.csv')} className="font-medium text-accent hover:underline">
                     Combats

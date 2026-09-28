@@ -10,6 +10,8 @@ import { duoStats } from '../server/stats/duo';
 import { attachEloChanges, defaultTierThreshold, nextTierInfo, tierThresholds } from '../server/stats/elo';
 import { groupRankedSets } from '../server/stats/ranked';
 import { withBattleSamples } from '../server/stats/trophies';
+import { fameLabel } from '../shared/labels';
+import { contrastRatio, modeIconId, nameColor, tierIconId } from '../web/src/lib/bs';
 import { apiTime, stored, teamBattle } from './fixtures';
 
 const base = '2026-09-01T18:00:00Z';
@@ -189,5 +191,32 @@ describe('sauvegardes et export', () => {
     backupIfDue(db, backups, Date.now() + 8 * 24 * 3_600_000);
     expect(listBackups(backups)).toHaveLength(2);
     fs.rmSync(dir, { recursive: true, force: true });
+  });
+});
+
+describe('repères Brawl Stars', () => {
+  it('traduit le palier de gloire', () => {
+    expect(fameLabel('METEORIC FAME I')).toBe('Gloire météorique I');
+    expect(fameLabel('STARR FORCE FAME III')).toBe('Gloire Starr Force III');
+    expect(fameLabel('SATURNAL FAME II')).toBe('Gloire saturnienne II');
+    expect(fameLabel('NEW THING')).toBe('New Thing');
+    expect(fameLabel(null)).toBeNull();
+  });
+
+  it('garde la couleur du pseudo en la rendant lisible sur fond blanc', () => {
+    expect(nameColor('0xfff05637')).toBe('#f05637');
+    expect(nameColor('0xffffffff')).toBeNull(); // pseudo blanc par défaut
+    expect(nameColor('n/a')).toBeNull();
+    const pale = nameColor('0xfffff05e')!; // jaune pâle : assombri, même teinte
+    expect(contrastRatio(pale, '#ffffff')).toBeGreaterThanOrEqual(3);
+  });
+
+  it('associe rangs et modes à leurs icônes', () => {
+    expect(tierIconId(1)).toBe(58000000);
+    expect(tierIconId(15)).toBe(58000014);
+    expect(tierIconId(22)).toBe(58000021);
+    expect(tierIconId(null)).toBeNull();
+    expect(modeIconId('heist')).toBe(48000002);
+    expect(modeIconId('inconnu')).toBeNull();
   });
 });

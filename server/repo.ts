@@ -128,6 +128,7 @@ export function toListItem(row: PlayerRow): PlayerListItem {
     tag: row.tag,
     slug: tagSlug(row.tag),
     name: row.name || row.tag,
+    nameColor: row.name_color,
     iconId: row.icon_id,
     isPrimary: row.is_primary === 1,
     colorSlot: row.color_slot,
@@ -143,7 +144,6 @@ export function toProfileDto(row: PlayerRow): PlayerProfileDto {
   const profile = playerProfile(row);
   return {
     ...toListItem(row),
-    nameColor: row.name_color,
     clubTag: row.club_tag,
     highestTrophies: profile?.highestTrophies ?? null,
     expLevel: profile?.expLevel ?? null,

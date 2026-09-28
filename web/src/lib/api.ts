@@ -112,5 +112,5 @@ export const useDeleteGoal = () => useAction((id: number) => api(`/goals/${id}`,
 export const useCreateBackup = () => useAction(() => api<BackupDto>('/backups', { method: 'POST' }));
 export const exportUrl = (slug: string, file: 'combats.csv' | 'progression.csv') => `/api/players/${slug}/export/${file}`;
 
-export const imageUrl = (kind: 'brawler' | 'icon' | 'map' | 'gadget' | 'starpower' | 'gear', id: number) =>
+export const imageUrl = (kind: 'brawler' | 'icon' | 'map' | 'gadget' | 'starpower' | 'gear' | 'rank' | 'mode', id: number) =>
   `/api/img/${kind}/${id}.png`;
