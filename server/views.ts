@@ -1,17 +1,21 @@
 import { battleCategory, titleCase, type BattleCategory } from '../shared/labels';
 import type {
   BattleDto,
+  BreakdownRow,
   BattleFilters,
   BattleListResponse,
   BattleStatsResponse,
   BrawlerDetailResponse,
+  LiveSessionResponse,
   CollectionResponse,
   CompareResponse,
   OverviewResponse,
+  PrestigeCandidateDto,
   Period,
   RankedProfileDto,
   RankedQueue,
   RankedResponse,
+  RankedSetDto,
   RotationResponse,
   SeriesPoint,
   TrophiesResponse,
@@ -45,12 +49,16 @@ import {
   starPlayerRate,
   vsBrawlerKeys,
   winLoss,
+  winRate,
 } from './stats/aggregate';
-import { buildCard, buildCollection, costLines } from './stats/collection';
+import { buildCard, buildCollection, costLines, upgradePriorities } from './stats/collection';
+import type { ApiPlayer } from './brawlstars/types';
 import { MAX_POWER_LEVEL } from './stats/costs';
 import { listGoals } from './stats/goals';
 import type { StoredBattle } from './stats/normalize';
-import { displayParticipant, mapPicks, matchesQueue, rankedCore, tierTimeline } from './stats/ranked';
+import { displayParticipant, groupRankedSets, mapPicks, matchesQueue, rankedCore, tierTimeline } from './stats/ranked';
+import { duoStats } from './stats/duo';
+import { attachEloChanges, nextTierInfo, tierThresholds, type EloSample } from './stats/elo';
 import { recommendForSlot, type OwnedBrawler } from './stats/recommend';
 import { DAY_MS, isoAgo, periodRange } from './stats/time';
 import { dailyDeltas, trophySeries } from './stats/trophies';
@@ -84,11 +92,31 @@ function usableReference<T extends { taken_at: string }>(reference: T | undefine
   return reference && now - Date.parse(reference.taken_at) >= 60 * 60 * 1000 ? reference : undefined;
 }
 
+/** Relevés de points Ranked (un par instantané de profil). */
+function eloSamples(db: Db, tag: string): EloSample[] {
+  return loadSnapshots(db, tag)
+    .filter((s) => s.ranked_elo !== null)
+    .map((s) => ({ t: s.taken_at, elo: s.ranked_elo as number }));
+}
+
+/** Points gagnés ou perdus sur chaque set, calculés sur toutes les files (clé = id du set). */
+function eloBySet(db: Db, tag: string, ranked: readonly StoredBattle[], now: number): Map<string, number | null> {
+  const sets = groupRankedSets(ranked, now);
+  attachEloChanges(sets, eloSamples(db, tag));
+  return new Map(sets.map((set) => [set.id, set.eloChange]));
+}
+
 /**
  * Points (ELO) et records Ranked lus dans le profil, avec leur évolution
- * enregistrée par le dashboard depuis `since`.
+ * enregistrée par le dashboard depuis `since`, et le rang suivant.
  */
-function rankedProfileView(db: Db, row: PlayerRow, since: string | null, now: number): RankedProfileDto {
+function rankedProfileView(
+  db: Db,
+  row: PlayerRow,
+  since: string | null,
+  now: number,
+  setChanges: ReadonlyMap<string, number | null> = new Map(),
+): RankedProfileDto {
   const profile = playerProfile(row);
   const samples = loadSnapshots(db, row.tag, since)
     .filter((s) => s.ranked_elo !== null)
@@ -97,7 +125,16 @@ function rankedProfileView(db: Db, row: PlayerRow, since: string | null, now: nu
   const baseline = before?.ranked_elo != null ? { taken_at: before.taken_at, trophies: before.ranked_elo } : undefined;
   const elo = profile?.rankedElo ?? null;
   const reference = usableReference(baseline ?? samples[0], now);
+  const observations = loadSnapshots(db, row.tag)
+    .filter((s) => s.ranked_elo !== null && s.ranked_rank !== null)
+    .map((s) => ({ elo: s.ranked_elo as number, tier: s.ranked_rank as number }));
+  const recentChanges = [...setChanges.entries()]
+    .sort(([a], [b]) => b.localeCompare(a))
+    .map(([, change]) => change)
+    .filter((change): change is number => change !== null)
+    .slice(0, 20);
   return {
+    ...nextTierInfo(elo, profile?.rankedRank ?? null, tierThresholds(observations), recentChanges),
     seasonId: profile?.rankedSeasonId ?? null,
     elo,
     tier: profile?.rankedRank ?? null,
@@ -122,9 +159,11 @@ function trophyDeltaSince(db: Db, tag: string, since: string, current: number | 
 export function overviewView({ db, catalog }: ViewDeps, row: PlayerRow, now = Date.now()): OverviewResponse {
   const profile = playerProfile(row);
   const { since, prevSince } = periodRange('30d', now);
-  const core = rankedCore(loadRankedBattles(db, row.tag), since, prevSince, now);
+  const allRanked = loadRankedBattles(db, row.tag);
+  const setChanges = eloBySet(db, row.tag, allRanked, now);
+  const core = rankedCore(allRanked, since, prevSince, now, setChanges);
   const { periodBattles, periodSets, ...rankedStats } = core;
-  const rankedProfile = rankedProfileView(db, row, since, now);
+  const rankedProfile = rankedProfileView(db, row, since, now, setChanges);
 
   const since7d = isoAgo(7 * DAY_MS, now);
   const current = profile?.trophies ?? null;
@@ -175,21 +214,35 @@ export function rankedView(
   queue: RankedQueue,
   now = Date.now(),
 ): RankedResponse {
-  const ranked = loadRankedBattles(db, row.tag).filter((b) => matchesQueue(b, queue));
+  const allRanked = loadRankedBattles(db, row.tag);
+  const setChanges = eloBySet(db, row.tag, allRanked, now);
+  const ranked = allRanked.filter((b) => matchesQueue(b, queue));
   const { since, prevSince } = periodRange(period, now);
-  const { periodBattles, periodSets, ...core } = rankedCore(ranked, since, prevSince, now);
-  const profile = rankedProfileView(db, row, since, now);
+  const { periodBattles, periodSets, ...core } = rankedCore(ranked, since, prevSince, now, setChanges);
+  const profile = rankedProfileView(db, row, since, now, setChanges);
+  const withElo = <T extends BreakdownRow>(rows: T[], keyOf: (set: RankedSetDto) => string | null): T[] => {
+    const totals = new Map<string, number>();
+    for (const set of periodSets) {
+      const key = keyOf(set);
+      if (key === null || set.eloChange === null) continue;
+      totals.set(key, (totals.get(key) ?? 0) + set.eloChange);
+    }
+    return rows.map((row) => ({ ...row, eloNet: totals.get(row.key) ?? null }));
+  };
   return {
     ...core,
     currentTier: profile.tier ?? core.currentTier,
     profile,
     period,
     queue,
-    byBrawler: breakdown(periodBattles, byBrawlerKey),
-    byMap: breakdown(periodBattles, byMapKey),
-    byMode: breakdown(periodBattles, byModeKey),
+    byBrawler: withElo(breakdown(periodBattles, byBrawlerKey), (set) =>
+      set.self?.brawlerId ? String(set.self.brawlerId) : null,
+    ),
+    byMap: withElo(breakdown(periodBattles, byMapKey), (set) => (set.map ? `${set.mode}|${set.map}` : null)),
+    byMode: withElo(breakdown(periodBattles, byModeKey), (set) => set.mode),
     vsBrawlers: breakdown(periodBattles, vsBrawlerKeys, { minGames: 2 }),
     allies: frequentAllies(periodBattles),
+    duos: duoStats(periodBattles, periodSets),
     recentSets: periodSets.slice(0, 40),
     mapPicks: mapPicks(periodBattles),
   };
@@ -236,10 +289,57 @@ export function trophiesView({ db }: ViewDeps, row: PlayerRow, period: Period, n
           games: stats?.games ?? 0,
           winRate: stats?.winRate ?? null,
           trophyNet: stats?.trophyNet ?? null,
+          currentWinStreak: typeof brawler.currentWinStreak === 'number' ? brawler.currentWinStreak : null,
+          maxWinStreak: typeof brawler.maxWinStreak === 'number' ? brawler.maxWinStreak : null,
         };
       })
       .sort((a, b) => b.trophies - a.trophies),
+    prestige: {
+      total: profile?.totalPrestigeLevel ?? null,
+      candidates: prestigeCandidates(profile, loadBattles(db, row.tag, isoAgo(30 * DAY_MS, now))),
+    },
+    streaks: (profile?.brawlers ?? [])
+      .filter((b) => typeof b.currentWinStreak === 'number' && b.currentWinStreak >= 2)
+      .map((b) => ({
+        id: b.id,
+        name: titleCase(b.name),
+        current: b.currentWinStreak as number,
+        max: typeof b.maxWinStreak === 'number' ? b.maxWinStreak : null,
+      }))
+      .sort((a, b) => b.current - a.current),
   };
+}
+
+/**
+ * Planificateur de prestige : les brawlers les plus proches de leur prochain palier
+ * (tous les 1 000 trophées), avec une estimation du nombre de parties d'après leur
+ * gain moyen sur les parties de trophées des 30 derniers jours.
+ */
+function prestigeCandidates(profile: ApiPlayer | null, recent: readonly StoredBattle[]): PrestigeCandidateDto[] {
+  const trophyGames = recent.filter((b) => battleCategory(b.type) === 'trophies');
+  const stats = new Map(breakdown(trophyGames, byBrawlerKey).map((r) => [r.id, r]));
+  return (profile?.brawlers ?? [])
+    .map((brawler) => {
+      const nextMilestone = (Math.floor(brawler.trophies / 1000) + 1) * 1000;
+      const remaining = nextMilestone - brawler.trophies;
+      const row = stats.get(brawler.id);
+      const avgPerGame = row && row.trophyNet !== null && row.games ? row.trophyNet / row.games : null;
+      return {
+        id: brawler.id,
+        name: titleCase(brawler.name),
+        trophies: brawler.trophies,
+        prestige: typeof brawler.prestigeLevel === 'number' ? brawler.prestigeLevel : null,
+        nextMilestone,
+        remaining,
+        games: row?.games ?? 0,
+        winRate: row?.winRate ?? null,
+        avgPerGame,
+        gamesToNext: avgPerGame !== null && avgPerGame > 0 ? Math.ceil(remaining / avgPerGame) : null,
+        currentWinStreak: typeof brawler.currentWinStreak === 'number' ? brawler.currentWinStreak : null,
+      };
+    })
+    .sort((a, b) => (a.gamesToNext ?? Infinity) - (b.gamesToNext ?? Infinity) || a.remaining - b.remaining)
+    .slice(0, 12);
 }
 
 // ── Combats ───────────────────────────────────────────────────
@@ -316,12 +416,21 @@ export function battleListView(
 
 // ── Collection ────────────────────────────────────────────────
 
-export function collectionView({ db, catalog }: ViewDeps, row: PlayerRow): CollectionResponse {
-  return buildCollection(
-    playerProfile(row),
-    catalog.get()?.brawlers ?? null,
-    statsByBrawler(loadBattles(db, row.tag)),
-  );
+export function collectionView({ db, catalog }: ViewDeps, row: PlayerRow, now = Date.now()): CollectionResponse {
+  const battles = loadBattles(db, row.tag);
+  const collection = buildCollection(playerProfile(row), catalog.get()?.brawlers ?? null, statsByBrawler(battles));
+  const since = isoAgo(60 * DAY_MS, now);
+  const recent = new Map<number, { games: number; ranked: number; wins: number; losses: number }>();
+  for (const battle of battles) {
+    if (battle.battleTime < since || battle.brawlerId === null) continue;
+    const entry = recent.get(battle.brawlerId) ?? { games: 0, ranked: 0, wins: 0, losses: 0 };
+    entry.games++;
+    if (battleCategory(battle.type) === 'ranked') entry.ranked++;
+    if (battle.outcome === 'win') entry.wins++;
+    if (battle.outcome === 'loss') entry.losses++;
+    recent.set(battle.brawlerId, entry);
+  }
+  return { ...collection, priorities: upgradePriorities(collection.brawlers, recent) };
 }
 
 export function brawlerDetailView(
@@ -423,4 +532,88 @@ export function compareView({ db }: ViewDeps, rows: PlayerRow[], now = Date.now(
     .sort((a, b) => Math.max(...b.values.map((v) => v ?? 0)) - Math.max(...a.values.map((v) => v ?? 0)));
 
   return { players, brawlers };
+}
+
+// ── Session en direct ─────────────────────────────────────────
+
+/** La session en cours (ou la dernière), pensée pour être suivie sur le téléphone pendant qu'on joue. */
+export function liveSessionView({ db }: ViewDeps, row: PlayerRow, now = Date.now()): LiveSessionResponse {
+  const profile = playerProfile(row);
+  const session = buildSessions(loadBattles(db, row.tag, isoAgo(7 * DAY_MS, now)))[0] ?? null;
+  const allRanked = loadRankedBattles(db, row.tag);
+  const setChanges = eloBySet(db, row.tag, allRanked, now);
+  const rankedProfile = rankedProfileView(db, row, null, now, setChanges);
+  const next = {
+    nextTier: rankedProfile.nextTier,
+    nextTierElo: rankedProfile.nextTierElo,
+    pointsToNext: rankedProfile.pointsToNext,
+    avgEloPerSet: rankedProfile.avgEloPerSet,
+    setsToNext: rankedProfile.setsToNext,
+  };
+  const empty = { games: 0, wins: 0, losses: 0, draws: 0, winRate: null };
+  if (!session) {
+    return {
+      active: false,
+      start: null,
+      end: null,
+      games: empty,
+      ranked: empty,
+      sets: empty,
+      recentSets: [],
+      eloStart: null,
+      eloNow: profile?.rankedElo ?? null,
+      eloDelta: null,
+      tier: rankedProfile.tier,
+      trophyNet: 0,
+      streak: { kind: null, count: 0 },
+      next,
+      brawlers: [],
+      battles: [],
+      lastPolledAt: row.last_polled_at,
+    };
+  }
+
+  const battles = loadBattles(db, row.tag, session.start).filter((b) => b.battleTime <= session.end);
+  const rankedBattles = battles.filter((b) => battleCategory(b.type) === 'ranked');
+  const sets = groupRankedSets(allRanked, now).filter((set) => set.end >= session.start);
+  for (const set of sets) set.eloChange = setChanges.get(set.id) ?? null;
+  const decided = sets.filter((s) => s.outcome === 'win' || s.outcome === 'loss' || s.outcome === 'draw');
+  const setWins = decided.filter((s) => s.outcome === 'win').length;
+  const setLosses = decided.filter((s) => s.outcome === 'loss').length;
+
+  const samples = eloSamples(db, row.tag);
+  const startSample = samples.filter((s) => s.t <= session.start).at(-1);
+  const eloNow = profile?.rankedElo ?? samples.at(-1)?.elo ?? null;
+
+  const brawlers = new Map<number, { id: number; name: string; games: number; wins: number; losses: number }>();
+  for (const battle of battles) {
+    if (battle.brawlerId === null) continue;
+    const entry = brawlers.get(battle.brawlerId) ?? { id: battle.brawlerId, name: titleCase(battle.brawlerName), games: 0, wins: 0, losses: 0 };
+    entry.games++;
+    if (battle.outcome === 'win') entry.wins++;
+    if (battle.outcome === 'loss') entry.losses++;
+    brawlers.set(battle.brawlerId, entry);
+  }
+
+  return {
+    active: now - Date.parse(session.end) < 30 * 60 * 1000,
+    start: session.start,
+    end: session.end,
+    games: winLoss(battles),
+    ranked: winLoss(rankedBattles),
+    sets: { games: decided.length, wins: setWins, losses: setLosses, draws: decided.length - setWins - setLosses, winRate: winRate(setWins, setLosses) },
+    recentSets: sets,
+    eloStart: startSample?.elo ?? null,
+    eloNow,
+    eloDelta: startSample && eloNow !== null ? eloNow - startSample.elo : null,
+    tier: rankedProfile.tier,
+    trophyNet: session.trophyNet,
+    streak: sets.length
+      ? currentStreak([...decided].reverse().map((s) => s.outcome as 'win' | 'loss' | 'draw'))
+      : currentStreak(battles.map((b) => b.outcome)),
+    next,
+    brawlers: [...brawlers.values()].sort((a, b) => b.games - a.games),
+    battles: battles.slice(-10).reverse().map(toBattleDto),
+    lastPolledAt: row.last_polled_at,
+  };
 }

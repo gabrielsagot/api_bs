@@ -109,6 +109,7 @@ function toSetDto(set: SetAccumulator, now: number, bestOfDetected: boolean): Ra
     draws: set.draws,
     outcome,
     tier: isKnownTier(self?.trophies) ? self.trophies : null,
+    eloChange: null,
     games: set.games.map((game) => ({
       battleTime: game.battleTime,
       outcome: game.outcome,
@@ -160,12 +161,15 @@ export function rankedCore(
   since: string | null,
   prevSince: string | null,
   now = Date.now(),
+  /** Points gagnés/perdus par set (clé = id du set), calculés sur toutes les files. */
+  eloBySet: ReadonlyMap<string, number | null> = new Map(),
 ): RankedCoreResult {
   const periodBattles = since ? ranked.filter((b) => b.battleTime >= since) : [...ranked];
   const previousBattles =
     since && prevSince ? ranked.filter((b) => b.battleTime >= prevSince && b.battleTime < since) : [];
 
   const allSets = groupRankedSets(ranked, now);
+  for (const set of allSets) set.eloChange = eloBySet.get(set.id) ?? null;
   const periodSets = since ? allSets.filter((s) => s.end >= since) : allSets;
   const detected = allSets.some((s) => s.games.length >= 2);
 

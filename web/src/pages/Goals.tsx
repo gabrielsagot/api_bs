@@ -3,7 +3,17 @@ import { useState, type FormEvent } from 'react';
 import { MAX_RANKED_TIER, tierName } from '../../../shared/labels';
 import type { GoalDto, GoalKind } from '../../../shared/types';
 import { GoalProgress } from '../components/cards';
-import { Button, Card, CardHeader, EmptyState, ErrorState, LoadingState, PageHeader, Select } from '../components/ui';
+import {
+  Button,
+  Card,
+  CardHeader,
+  DocLink,
+  EmptyState,
+  ErrorState,
+  LoadingState,
+  PageHeader,
+  Select,
+} from '../components/ui';
 import { useCollection, useCreateGoal, useDeleteGoal, useGoals, useOverview } from '../lib/api';
 import { fmtInt } from '../lib/format';
 import { usePlayerSlug } from '../lib/hooks';
@@ -85,7 +95,7 @@ export function GoalsPage() {
 
   return (
     <>
-      <PageHeader title="Objectifs" subtitle="Fixe un cap : le dashboard suit ta progression et estime quand tu l’atteindras." />
+      <PageHeader title="Objectifs" subtitle="Fixe un cap : le dashboard suit ta progression et estime quand tu l’atteindras." action={<DocLink section="objectifs" />} />
       <div className="grid gap-4 lg:grid-cols-12">
         <Card className="lg:col-span-5">
           <CardHeader title="Nouvel objectif" />

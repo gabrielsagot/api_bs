@@ -8,7 +8,9 @@ import { BrawlerDetailPage } from './pages/BrawlerDetail';
 import { BrawlersPage } from './pages/Brawlers';
 import { ComparePage } from './pages/Compare';
 import { GoalsPage } from './pages/Goals';
+import { DocumentationPage } from './pages/Documentation';
 import { HomePage } from './pages/Home';
+import { LivePage } from './pages/Live';
 import { RankedPage } from './pages/Ranked';
 import { RotationPage } from './pages/Rotation';
 import { SettingsPage } from './pages/Settings';
@@ -53,6 +55,7 @@ const router = createBrowserRouter([
     children: [
       { path: '/', element: <RootRedirect /> },
       { path: '/p/:tag', element: player(<HomePage />) },
+      { path: '/p/:tag/direct', element: player(<LivePage />) },
       { path: '/p/:tag/ranked', element: player(<RankedPage />) },
       { path: '/p/:tag/trophees', element: player(<TrophiesPage />) },
       { path: '/p/:tag/combats', element: player(<BattlesPage />) },
@@ -62,6 +65,7 @@ const router = createBrowserRouter([
       { path: '/p/:tag/objectifs', element: player(<GoalsPage />) },
       { path: '/comparer', element: <ComparePage /> },
       { path: '/reglages', element: <SettingsPage /> },
+      { path: '/documentation', element: <DocumentationPage /> },
       {
         path: '*',
         element: (

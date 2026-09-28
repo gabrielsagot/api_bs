@@ -10,18 +10,21 @@ Il tourne sur ton Mac et s'ouvre aussi sur ton téléphone, sur le même Wi-Fi.
 
 ## Ce qu'il fait
 
-- **Accueil centré sur le Ranked** : rang actuel, winrate et écart avec le mois précédent, sets gagnés, série en cours,
-  évolution du rang, derniers sets, tes brawlers et tes maps, dernière session, objectifs.
-- **Ranked** : sets BO3 reconstitués (2–0, 2–1…), winrate par brawler et par map, brawlers adverses, coéquipiers
-  réguliers, meilleurs picks par map, historique des sets avec les compositions d'équipe.
-- **Trophées** : courbe dans le temps, variation jour par jour, progression de chaque brawler.
+- **Accueil centré sur le Ranked** : rang, points et records, rang suivant, winrate et écart avec le mois précédent,
+  sets gagnés, série en cours, évolution, derniers sets, tes brawlers et tes maps, dernière session, objectifs.
+- **En direct** : l'écran à garder sur le téléphone pendant que tu joues (points gagnés sur la session, sets, série).
+- **Ranked** : sets BO3 reconstitués avec les **points gagnés ou perdus par set**, points nets par brawler, map et mode,
+  brawlers adverses, **toi avec ou sans chaque coéquipier** et vos meilleurs duos, meilleurs picks par map.
+- **Trophées** : courbe dans le temps, variation jour par jour, **planificateur de prestige**, séries de victoires.
 - **Combats** : historique complet et filtrable (type, mode, brawler, map), stats par mode, map, brawler et
   adversaire, sessions de jeu.
-- **Brawlers** : collection complète, gadgets / star powers / hypercharges / gears, brawlers manquants et
-  **coût restant en pièces et points de puissance pour tout maxer**.
+- **Brawlers** : collection complète, gadgets / star powers / hypercharges / gears / buffies, rareté, coût restant pour
+  tout maxer et **priorités d'amélioration** d'après ce que tu joues vraiment.
 - **Rotation** : les maps du moment, avec les brawlers qui te réussissent le mieux dessus d'après ton historique.
 - **Objectifs** : trophées, rang Ranked, brawler, niveau 11… avec une date d'arrivée estimée d'après ton rythme.
 - **Comparer** : tes autres comptes et ceux de tes potes, côte à côte.
+- **Documentation** intégrée : chaque page, chaque calcul, la collecte, l'installation et le dépannage.
+- **Sauvegardes** automatiques chaque semaine et **export CSV** de tes combats et de ta progression.
 
 ## Installation (environ 5 minutes)
 
@@ -114,6 +117,13 @@ Pour qu'il démarre tout seul à chaque ouverture de session :
 ./scripts/macos-autostart.sh uninstall   # tout retirer (tes données sont conservées)
 ```
 
+Sur une machine allumée en continu (Raspberry Pi, NAS, serveur Linux) :
+
+```bash
+./scripts/linux-service.sh install       # service systemd
+docker compose up -d                     # ou avec Docker (lit le .env, données dans ./data)
+```
+
 Quand le Mac est en veille, la collecte est en pause. Pour une collecte continue sur secteur, active
 *Réglages Système › Batterie › Options › Empêcher la suspension automatique lorsque l'écran est éteint*.
 
@@ -124,15 +134,15 @@ Quand le Mac est en veille, la collecte est en pause. Pour une collecte continue
   `POLL_ACTIVE_SECONDS` et `POLL_IDLE_SECONDS`). Si tu joues plus de 25 parties pendant qu'il est éteint, les plus
   anciennes sont perdues.
 - **Ranked** : ton rang, tes points (ELO) et tes records de saison et absolu viennent du profil. Le dashboard enregistre
-  l'évolution de tes points à chaque collecte. Les sets BO3 sont reconstitués en regroupant les manches jouées contre les
-  mêmes adversaires.
+  l'évolution de tes points à chaque collecte, ce qui permet de chiffrer chaque set. Les seuils de rang sont estimés
+  (500 points par rang). Toutes les méthodes de calcul sont détaillées dans la page **Documentation** de l'app.
 - **Piège de l'API** : le type de combat `ranked` désigne en réalité les parties de **trophées**. Le mode Ranked
   apparaît sous `soloRanked` et `teamRanked`. Le dashboard fait la différence pour toi.
 - **Images** : l'API officielle n'en fournit aucune. Les portraits viennent du CDN communautaire Brawlify et sont mis en
   cache dans `data/img`. La rareté des brawlers vient aussi de Brawlify, et le dashboard fonctionne sans.
 - **Coûts d'amélioration** : les prix (niveaux, gadgets, star powers, hypercharges) sont dans
   `server/stats/costs.ts`. À ajuster si Supercell change l'économie du jeu.
-- **Tes données** sont dans `data/brawl.sqlite`. Pour les sauvegarder, copie le dossier `data/`.
+- **Tes données** sont dans `data/brawl.sqlite`, avec une sauvegarde automatique par semaine dans `data/backups`.
 
 ## Dépannage
 

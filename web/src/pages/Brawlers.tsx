@@ -5,13 +5,26 @@ import { Link } from 'react-router';
 import { rarityLabel } from '../../../shared/labels';
 import type { AccessoryDto, BrawlerCardDto } from '../../../shared/types';
 import { BrawlerAvatar } from '../components/avatars';
-import { Card, EmptyState, ErrorState, FilterBar, LoadingState, PageHeader, Refetching, Segmented, Select, StatTile } from '../components/ui';
+import {
+  Card,
+  CardHeader,
+  DocLink,
+  EmptyState,
+  ErrorState,
+  FilterBar,
+  LoadingState,
+  PageHeader,
+  Refetching,
+  Segmented,
+  Select,
+  StatTile,
+} from '../components/ui';
 import { useCollection } from '../lib/api';
 import { fmtCompact, fmtInt, fmtPct } from '../lib/format';
 import { usePlayerSlug, useSearchParam } from '../lib/hooks';
 
 type Ownership = 'all' | 'owned' | 'missing';
-type SortKey = 'trophies' | 'power' | 'name' | 'cost' | 'winrate' | 'rarity';
+type SortKey = 'trophies' | 'power' | 'name' | 'cost' | 'winrate' | 'rarity' | 'streak';
 
 const SORTS: { value: SortKey; label: string }[] = [
   { value: 'trophies', label: 'Trier : trophées' },
@@ -19,6 +32,7 @@ const SORTS: { value: SortKey; label: string }[] = [
   { value: 'cost', label: 'Trier : coût restant' },
   { value: 'winrate', label: 'Trier : winrate' },
   { value: 'rarity', label: 'Trier : rareté' },
+  { value: 'streak', label: 'Trier : série max' },
   { value: 'name', label: 'Trier : nom' },
 ];
 
@@ -34,6 +48,8 @@ function sortValue(brawler: BrawlerCardDto, key: SortKey): number | string {
       return brawler.games >= 3 ? (brawler.winRate ?? -1) : -1;
     case 'rarity':
       return (brawler.rarityRank ?? -1) * 10_000 + (brawler.trophies ?? 0);
+    case 'streak':
+      return brawler.maxWinStreak ?? -1;
     case 'name':
       return brawler.name;
   }
@@ -103,7 +119,7 @@ export function BrawlersPage() {
   const slug = usePlayerSlug();
   const { data, error, isLoading, isPlaceholderData } = useCollection(slug);
   const [ownership, setOwnership] = useSearchParam<Ownership>('filtre', 'all', ['all', 'owned', 'missing']);
-  const [sort, setSort] = useSearchParam<SortKey>('tri', 'trophies', ['trophies', 'power', 'name', 'cost', 'winrate', 'rarity']);
+  const [sort, setSort] = useSearchParam<SortKey>('tri', 'trophies', ['trophies', 'power', 'name', 'cost', 'winrate', 'rarity', 'streak']);
   const [rarity, setRarity] = useSearchParam<string>('rarete', '');
   const [search, setSearch] = useState('');
 
@@ -136,7 +152,7 @@ export function BrawlersPage() {
 
   return (
     <>
-      <PageHeader title="Brawlers" subtitle="Ta collection, et ce qu’il reste à débloquer et à améliorer." />
+      <PageHeader title="Brawlers" subtitle="Ta collection, et ce qu’il reste à débloquer et à améliorer." action={<DocLink section="brawlers" />} />
       <Refetching active={isPlaceholderData}>
         <div className="grid grid-cols-2 gap-4 md:grid-cols-3 2xl:grid-cols-6">
           <StatTile
@@ -147,7 +163,11 @@ export function BrawlersPage() {
           <StatTile label="Niveau 11" value={fmtInt(totals.power11)} sub={`dont ${fmtInt(totals.maxed)} complets`} />
           <StatTile label="Gadgets" value={ratio(totals.gadgets.owned, totals.gadgets.total)} />
           <StatTile label="Star powers" value={ratio(totals.starPowers.owned, totals.starPowers.total)} />
-          <StatTile label="Hypercharges" value={ratio(totals.hyperCharges.owned, totals.hyperCharges.total)} />
+          <StatTile
+            label="Hypercharges"
+            value={ratio(totals.hyperCharges.owned, totals.hyperCharges.total)}
+            sub={totals.buffies.total !== null ? `buffies : ${ratio(totals.buffies.owned, totals.buffies.total)}` : undefined}
+          />
           <StatTile
             label="Pour tout maxer"
             value={`${fmtCompact(totals.coinsToMax)} pièces`}
@@ -158,6 +178,37 @@ export function BrawlersPage() {
           <p className="mt-3 text-[13px] text-ink-2">
             Catalogue complet indisponible pour l’instant : seuls tes brawlers débloqués sont listés.
           </p>
+        )}
+
+        {data.priorities.length > 0 && (
+          <Card className="mt-4">
+            <CardHeader
+              title="À améliorer en priorité"
+              subtitle="Tes brawlers les plus joués ces 60 derniers jours (le Ranked compte davantage) et les plus efficaces, avec leur prochaine étape"
+            />
+            <ul className="-my-1 divide-y divide-line">
+              {data.priorities.map((row) => (
+                <li key={row.brawlerId}>
+                  <Link to={`/p/${slug}/brawlers/${row.brawlerId}`} className="flex items-center gap-3 py-2.5 hover:bg-fill/60">
+                    <BrawlerAvatar id={row.brawlerId} name={row.name} size={36} />
+                    <div className="min-w-0 flex-1">
+                      <div className="truncate text-[14px] font-medium">{row.name}</div>
+                      <div className="truncate text-[12px] text-ink-2">
+                        Niv. {row.power} · {row.games} parties{row.rankedGames ? ` (dont ${row.rankedGames} en Ranked)` : ''} · {fmtPct(row.winRate)}
+                        {row.missingBuffies > 0 ? ` · ${row.missingBuffies} buffie${row.missingBuffies > 1 ? 's' : ''} à débloquer` : ''}
+                      </div>
+                    </div>
+                    <div className="min-w-0 max-w-[45%] text-right">
+                      <div className="truncate text-[13px] font-medium">{row.step}</div>
+                      <div className="text-[12px] text-ink-2 tnum">
+                        {fmtInt(row.stepCoins)} pièces{row.stepPowerPoints ? ` · ${fmtInt(row.stepPowerPoints)} PP` : ''}
+                      </div>
+                    </div>
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          </Card>
         )}
 
         <div className="mt-6">

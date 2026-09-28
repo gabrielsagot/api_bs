@@ -38,6 +38,14 @@ export interface PlayerProfileDto extends PlayerListItem {
   trackedSince: string;
 }
 
+// ── Sauvegardes ───────────────────────────────────────────────
+
+export interface BackupDto {
+  name: string;
+  createdAt: string;
+  sizeBytes: number;
+}
+
 // ── Statut de l'app ───────────────────────────────────────────
 
 export type KeyMode = 'auto' | 'manual' | 'none' | 'demo';
@@ -119,6 +127,8 @@ export interface BreakdownRow extends WinLoss {
   sub: string | null;
   starPlayers: number;
   trophyNet: number | null;
+  /** Points Ranked nets (sets mesurés uniquement), quand ils sont connus. */
+  eloNet: number | null;
 }
 
 export interface StreakDto {
@@ -190,6 +200,8 @@ export interface RankedSetDto {
   draws: number;
   outcome: SetOutcome;
   tier: number | null;
+  /** Points Ranked gagnés ou perdus sur ce set (null si non mesurable). */
+  eloChange: number | null;
   games: {
     battleTime: string;
     outcome: Outcome | null;
@@ -241,6 +253,34 @@ export interface RankedProfileDto {
   /** Variation des points sur la période affichée. */
   eloDelta: number | null;
   eloSeries: SeriesPoint[];
+  /** Rang suivant, seuil estimé et points restants. */
+  nextTier: number | null;
+  nextTierElo: number | null;
+  pointsToNext: number | null;
+  /** Moyenne des points par set sur les derniers sets mesurés. */
+  avgEloPerSet: number | null;
+  setsToNext: number | null;
+}
+
+export interface DuoPairDto extends WinLoss {
+  myId: number;
+  myName: string;
+  allyId: number;
+  allyName: string;
+}
+
+export interface DuoRow {
+  tag: string;
+  name: string;
+  games: number;
+  wins: number;
+  losses: number;
+  winRate: number | null;
+  withoutGames: number;
+  withoutWinRate: number | null;
+  sets: number;
+  eloNet: number | null;
+  pairs: DuoPairDto[];
 }
 
 export interface RankedResponse extends RankedCore {
@@ -252,8 +292,32 @@ export interface RankedResponse extends RankedCore {
   byMode: BreakdownRow[];
   vsBrawlers: BreakdownRow[];
   allies: BreakdownRow[];
+  duos: DuoRow[];
   recentSets: RankedSetDto[];
   mapPicks: MapPicksDto[];
+}
+
+// ── Session en direct ─────────────────────────────────────────
+
+export interface LiveSessionResponse {
+  /** Une partie a été jouée il y a moins de 30 min. */
+  active: boolean;
+  start: string | null;
+  end: string | null;
+  games: WinLoss;
+  ranked: WinLoss;
+  sets: WinLoss;
+  recentSets: RankedSetDto[];
+  eloStart: number | null;
+  eloNow: number | null;
+  eloDelta: number | null;
+  tier: number | null;
+  trophyNet: number;
+  streak: StreakDto;
+  next: Pick<RankedProfileDto, 'nextTier' | 'nextTierElo' | 'pointsToNext' | 'avgEloPerSet' | 'setsToNext'>;
+  brawlers: { id: number; name: string; games: number; wins: number; losses: number }[];
+  battles: BattleDto[];
+  lastPolledAt: string | null;
 }
 
 // ── Trophées ──────────────────────────────────────────────────
@@ -280,6 +344,22 @@ export interface TrophyBrawlerRow {
   games: number;
   winRate: number | null;
   trophyNet: number | null;
+  currentWinStreak: number | null;
+  maxWinStreak: number | null;
+}
+
+export interface PrestigeCandidateDto {
+  id: number;
+  name: string;
+  trophies: number;
+  prestige: number | null;
+  nextMilestone: number;
+  remaining: number;
+  games: number;
+  winRate: number | null;
+  avgPerGame: number | null;
+  gamesToNext: number | null;
+  currentWinStreak: number | null;
 }
 
 export interface TrophiesResponse {
@@ -291,6 +371,8 @@ export interface TrophiesResponse {
   daily: DailyDelta[];
   trophyGames: WinLoss & { trophyNet: number; avgPerGame: number | null };
   brawlers: TrophyBrawlerRow[];
+  prestige: { total: number | null; candidates: PrestigeCandidateDto[] };
+  streaks: { id: number; name: string; current: number; max: number | null }[];
 }
 
 // ── Collection ────────────────────────────────────────────────
@@ -343,10 +425,27 @@ export interface CollectionResponse {
     starPowers: { owned: number; total: number | null };
     hyperCharges: { owned: number; total: number | null };
     gears: number;
+    buffies: { owned: number; total: number | null };
     coinsToMax: number;
     powerPointsToMax: number;
   };
   brawlers: BrawlerCardDto[];
+  priorities: UpgradePriorityDto[];
+}
+
+/** Prochain achat conseillé : les brawlers que tu joues le plus et qui te réussissent. */
+export interface UpgradePriorityDto {
+  brawlerId: number;
+  name: string;
+  power: number;
+  games: number;
+  rankedGames: number;
+  winRate: number | null;
+  step: string;
+  stepCoins: number;
+  stepPowerPoints: number;
+  remainingCoins: number;
+  missingBuffies: number;
 }
 
 export interface CostLineDto {

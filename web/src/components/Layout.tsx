@@ -1,5 +1,6 @@
 import clsx from 'clsx';
 import {
+  BookOpen,
   CalendarClock,
   ChevronDown,
   CircleAlert,
@@ -8,6 +9,7 @@ import {
   LayoutGrid,
   LoaderCircle,
   Medal,
+  Radio,
   RefreshCw,
   Settings,
   Swords,
@@ -34,6 +36,7 @@ interface NavItem {
 
 const NAV: NavItem[] = [
   { to: '', label: 'Accueil', icon: House, scoped: true },
+  { to: 'direct', label: 'En direct', icon: Radio, scoped: true },
   { to: 'ranked', label: 'Ranked', icon: Medal, scoped: true },
   { to: 'trophees', label: 'Trophées', icon: Trophy, scoped: true },
   { to: 'combats', label: 'Combats', icon: Swords, scoped: true },
@@ -41,10 +44,11 @@ const NAV: NavItem[] = [
   { to: 'rotation', label: 'Rotation', icon: CalendarClock, scoped: true },
   { to: 'objectifs', label: 'Objectifs', icon: Target, scoped: true },
   { to: '/comparer', label: 'Comparer', icon: Users, scoped: false },
+  { to: '/documentation', label: 'Documentation', icon: BookOpen, scoped: false },
   { to: '/reglages', label: 'Réglages', icon: Settings, scoped: false },
 ];
 
-const MOBILE_TABS = ['', 'ranked', 'combats', 'brawlers'];
+const MOBILE_TABS = ['', 'direct', 'ranked', 'brawlers'];
 
 function hrefFor(item: NavItem, slug: string | undefined): string {
   if (!item.scoped) return item.to;
@@ -156,8 +160,9 @@ export function Layout() {
 
   useEffect(() => setMoreOpen(false), [location.pathname]);
   useEffect(() => {
-    window.scrollTo({ top: 0 });
-  }, [location.pathname]);
+    // Les liens vers une section (#ancre) gèrent eux-mêmes le défilement.
+    if (!location.hash) window.scrollTo({ top: 0 });
+  }, [location.pathname, location.hash]);
 
   const isActive = (item: NavItem) => {
     const href = hrefFor(item, slug);

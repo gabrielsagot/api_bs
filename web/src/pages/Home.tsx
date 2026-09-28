@@ -4,9 +4,9 @@ import type { StreakDto } from '../../../shared/types';
 import { SetRow } from '../components/battles';
 import { GoalsCard, SessionCard } from '../components/cards';
 import { Sparkline } from '../components/charts';
-import { RankedProgressCard, tierWithElo } from '../components/ranked';
+import { NextTierProgress, RankedProgressCard, tierWithElo } from '../components/ranked';
 import { BreakdownTable } from '../components/tables';
-import { Card, CardHeader, Delta, EmptyState, ErrorState, LoadingState, PageHeader, Refetching, StatTile } from '../components/ui';
+import { Card, CardHeader, Delta, DocLink, EmptyState, ErrorState, LoadingState, PageHeader, Refetching, StatTile } from '../components/ui';
 import { useOverview } from '../lib/api';
 import { fmtInt, fmtPct, fmtPts, fmtSigned } from '../lib/format';
 import { useNow, usePlayerSlug } from '../lib/hooks';
@@ -36,6 +36,7 @@ export function HomePage() {
   return (
     <Refetching active={isPlaceholderData}>
       <PageHeader
+        action={<DocLink section="accueil" />}
         title={player.name}
         subtitle={
           <>
@@ -91,6 +92,11 @@ export function HomePage() {
                   </>
                 )}
               </dl>
+              {ranked.profile.pointsToNext !== null && (
+                <div className="mt-5 border-t border-line pt-4">
+                  <NextTierProgress elo={ranked.profile.elo} next={ranked.profile} compact />
+                </div>
+              )}
             </>
           ) : (
             <p className="mt-3 text-[15px] text-ink-2">

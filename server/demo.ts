@@ -139,6 +139,8 @@ interface SimBrawler {
   hyperCharges: ApiAccessory[];
   /** Talent caché : rend les stats de la démo intéressantes (vrais bons et mauvais picks). */
   skill: number;
+  streak?: number;
+  maxStreak?: number;
 }
 
 interface SimPlayer {
@@ -156,7 +158,9 @@ interface SimPlayer {
   solo: number;
   duo: number;
   tier: number;
-  bestTier: number;
+  elo: number;
+  bestElo: number;
+  seasonBestElo: number;
   favorites: number[];
 }
 
@@ -225,7 +229,9 @@ function createPlayer(
     solo: between(rand, 600, 1_500),
     duo: between(rand, 900, 2_200),
     tier: options.tier,
-    bestTier: options.tier + 1.5,
+    elo: Math.round(500 * (options.tier - 4)),
+    bestElo: Math.round(500 * (options.tier - 4)) + 900,
+    seasonBestElo: Math.round(500 * (options.tier - 4)) + 250,
     favorites,
   };
 }
@@ -248,12 +254,12 @@ function toApiPlayer(sim: SimPlayer): ApiPlayer {
     duoVictories: sim.duo,
     // Ranked : ~370 points par rang, comme dans le jeu.
     rankedSeasonId: 49,
-    rankedRank: Math.round(sim.tier),
-    rankedElo: Math.round(sim.tier * 370),
-    highestSeasonRankedRank: Math.round(Math.max(sim.tier, sim.bestTier - 1)),
-    highestSeasonRankedElo: Math.round(Math.max(sim.tier, sim.bestTier - 1) * 370),
-    highestAllTimeRankedRank: Math.round(Math.max(sim.tier, sim.bestTier)),
-    highestAllTimeRankedElo: Math.round(Math.max(sim.tier, sim.bestTier) * 370),
+    rankedRank: Math.floor(sim.elo / 500) + 4,
+    rankedElo: sim.elo,
+    highestSeasonRankedRank: Math.floor(sim.seasonBestElo / 500) + 4,
+    highestSeasonRankedElo: sim.seasonBestElo,
+    highestAllTimeRankedRank: Math.floor(sim.bestElo / 500) + 4,
+    highestAllTimeRankedElo: sim.bestElo,
     fameTierName: 'RISING FAME II',
     club: sim.club,
     brawlers: brawlers.map((b) => ({
@@ -264,6 +270,9 @@ function toApiPlayer(sim: SimPlayer): ApiPlayer {
       trophies: b.trophies,
       highestTrophies: b.highest,
       ...(b.trophies >= 1000 ? { prestigeLevel: Math.floor(b.trophies / 1000) } : {}),
+      currentWinStreak: b.streak ?? 0,
+      maxWinStreak: Math.max(b.maxStreak ?? 0, 3 + (b.id % 9)),
+      buffies: { gadget: b.power >= 11 && b.id % 3 === 0, starPower: b.power >= 11 && b.id % 5 === 0, hyperCharge: false },
       gears: b.gears,
       starPowers: b.starPowers,
       gadgets: b.gadgets,
@@ -333,6 +342,8 @@ function trophyGame(rand: Rand, sim: SimPlayer, at: number): ApiBattle {
     const roll = rand();
     const result = roll < winChance ? 'victory' : roll < winChance + 0.04 ? 'draw' : 'defeat';
     const change = result === 'victory' ? between(rand, 6, 9) : result === 'draw' ? 0 : -between(rand, 4, 8);
+    brawler.streak = result === 'victory' ? (brawler.streak ?? 0) + 1 : 0;
+    brawler.maxStreak = Math.max(brawler.maxStreak ?? 0, brawler.streak);
     brawler.trophies = Math.max(0, before + change);
     if (result === 'victory') sim.victories3v3++;
     const allies = [selfEntry(sim, brawler, before), randomOpponent(rand, before), randomOpponent(rand, before)];
@@ -357,7 +368,7 @@ function trophyGame(rand: Rand, sim: SimPlayer, at: number): ApiBattle {
 function rankedSet(rand: Rand, sim: SimPlayer, start: number, teammates: ApiBattlePlayer[] | null): { battles: ApiBattle[]; end: number } {
   const [mode, map] = pick(rand, RANKED_POOL);
   const brawler = pickBrawler(rand, sim, true);
-  const tier = Math.round(sim.tier);
+  const tier = Math.floor(sim.tier);
   const allies = teammates ?? [randomOpponent(rand, 0, tier), randomOpponent(rand, 0, tier)];
   const enemies = [randomOpponent(rand, 0, tier), randomOpponent(rand, 0, tier), randomOpponent(rand, 0, tier)];
   const winChance = 0.53 + brawler.skill * 1.3 - (sim.tier - 11) * 0.03;
@@ -386,8 +397,10 @@ function rankedSet(rand: Rand, sim: SimPlayer, start: number, teammates: ApiBatt
     });
     at += between(rand, 150, 260) * 1000;
   }
-  sim.tier = Math.min(21.4, Math.max(4, sim.tier + (wins === 2 ? 0.34 : -0.3)));
-  sim.bestTier = Math.max(sim.bestTier, sim.tier);
+  sim.elo = Math.max(0, sim.elo + (wins === 2 ? between(rand, 20, 30) : -between(rand, 15, 25)));
+  sim.seasonBestElo = Math.max(sim.seasonBestElo, sim.elo);
+  sim.bestElo = Math.max(sim.bestElo, sim.elo);
+  sim.tier = sim.elo / 500 + 4;
   sim.expPoints += between(rand, 20, 60);
   return { battles, end: at };
 }

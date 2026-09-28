@@ -1,5 +1,6 @@
 import { titleCase } from '../../shared/labels';
-import type { AccessoryDto, BrawlerCardDto, CollectionResponse, CostLineDto, WinLoss } from '../../shared/types';
+import type { AccessoryDto, BrawlerCardDto, CollectionResponse, CostLineDto, UpgradePriorityDto, WinLoss } from '../../shared/types';
+import { shrunkWinRate, winRate } from './aggregate';
 import type { ApiAccessory, ApiPlayer, ApiPlayerBrawler } from '../brawlstars/types';
 import type { CatalogBrawler, CatalogItem } from '../catalog';
 import {
@@ -118,11 +119,79 @@ export function buildCollection(
         total: catalogHasHypercharges ? sumAll((b) => b.hyperCharges) : null,
       },
       gears: owned.reduce((t, b) => t + b.gears.length, 0),
+      buffies: (() => {
+        const withBuffies = owned.filter((b) => b.buffies);
+        const count = withBuffies.reduce(
+          (t, b) => t + Number(b.buffies!.gadget) + Number(b.buffies!.starPower) + Number(b.buffies!.hyperCharge),
+          0,
+        );
+        return { owned: count, total: withBuffies.length ? withBuffies.length * 3 : null };
+      })(),
       coinsToMax: owned.reduce((t, b) => t + (b.cost?.coins ?? 0), 0),
       powerPointsToMax: owned.reduce((t, b) => t + (b.cost?.powerPoints ?? 0), 0),
     },
     brawlers,
+    priorities: [],
   };
+}
+
+/** Prochaine étape d'amélioration d'un brawler et son coût. */
+function nextStep(card: BrawlerCardDto): { step: string; coins: number; powerPoints: number } | null {
+  if (!card.owned || card.power === null) return null;
+  if (card.power < MAX_POWER_LEVEL) {
+    const cost = LEVEL_UP_COSTS[card.power];
+    const unlock = card.power + 1 === 7 ? ' (débloque les gadgets)' : card.power + 1 === 9 ? ' (débloque les star powers)' : card.power + 1 === MAX_POWER_LEVEL ? ' (débloque l’hypercharge)' : '';
+    return { step: `Niveau ${card.power} → ${card.power + 1}${unlock}`, coins: cost?.coins ?? 0, powerPoints: cost?.powerPoints ?? 0 };
+  }
+  const gadget = card.gadgets.find((g) => !g.owned);
+  if (gadget) return { step: `Gadget · ${gadget.name}`, coins: GADGET_COST, powerPoints: 0 };
+  const starPower = card.starPowers.find((s) => !s.owned);
+  if (starPower) return { step: `Star power · ${starPower.name}`, coins: STAR_POWER_COST, powerPoints: 0 };
+  const hyper = card.hyperCharges.find((h) => !h.owned);
+  if (hyper) return { step: `Hypercharge · ${hyper.name}`, coins: HYPERCHARGE_COST, powerPoints: 0 };
+  return null;
+}
+
+/**
+ * Quoi améliorer en premier : on privilégie les brawlers joués récemment (le Ranked
+ * compte davantage) et efficaces (winrate lissé). Chaque ligne donne la prochaine
+ * étape concrète et son prix.
+ */
+export function upgradePriorities(
+  cards: readonly BrawlerCardDto[],
+  recent: ReadonlyMap<number, { games: number; ranked: number; wins: number; losses: number }>,
+  limit = 8,
+): UpgradePriorityDto[] {
+  return cards
+    .map((card) => {
+      const usage = recent.get(card.id);
+      const step = nextStep(card);
+      if (!usage || !step || usage.games === 0) return null;
+      const effectiveness = shrunkWinRate(usage, 0.5, 6);
+      const missingBuffies = card.buffies
+        ? 3 - Number(card.buffies.gadget) - Number(card.buffies.starPower) - Number(card.buffies.hyperCharge)
+        : 0;
+      return {
+        score: (usage.games + usage.ranked * 0.5) * (0.5 + effectiveness),
+        row: {
+          brawlerId: card.id,
+          name: card.name,
+          power: card.power ?? 0,
+          games: usage.games,
+          rankedGames: usage.ranked,
+          winRate: winRate(usage.wins, usage.losses),
+          step: step.step,
+          stepCoins: step.coins,
+          stepPowerPoints: step.powerPoints,
+          remainingCoins: card.cost?.coins ?? 0,
+          missingBuffies,
+        } satisfies UpgradePriorityDto,
+      };
+    })
+    .filter((entry): entry is NonNullable<typeof entry> => entry !== null)
+    .sort((a, b) => b.score - a.score)
+    .slice(0, limit)
+    .map((entry) => entry.row);
 }
 
 /** Détail du coût restant pour un brawler (niveaux, gadgets, star powers, hypercharge). */

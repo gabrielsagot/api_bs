@@ -7,6 +7,7 @@ import type { BattleFilters, CreateGoalInput, GoalKind, RankedQueue, StatusDto }
 import { BrawlStarsError } from './brawlstars/client';
 import { KeyUnavailableError, type KeyProvider } from './brawlstars/keys';
 import type { AppConfig } from './config';
+import { createBackup, listBackups, toCsv } from './backup';
 import { ImageCache } from './images';
 import { errorMessage } from './log';
 import type { Poller } from './poller';
@@ -16,6 +17,8 @@ import {
   findPlayer,
   insertPlayer,
   listPlayers,
+  loadBattles,
+  loadSnapshots,
   setPrimaryPlayer,
   toListItem,
   type PlayerRow,
@@ -28,6 +31,7 @@ import {
   brawlerDetailView,
   collectionView,
   compareView,
+  liveSessionView,
   overviewView,
   rankedView,
   rotationView,
@@ -41,6 +45,7 @@ export interface RouteDeps extends ViewDeps {
   poller: Poller | null;
   images: ImageCache;
   version: string;
+  backupDir: string;
 }
 
 type Params = { tag?: string; id?: string; kind?: string; file?: string };
@@ -225,6 +230,8 @@ export function registerRoutes(app: FastifyInstance, deps: RouteDeps): void {
 
   app.get('/api/players/:tag/rotation', async (request: Req) => rotationView(deps, player(request)));
 
+  app.get('/api/players/:tag/session', async (request: Req) => liveSessionView(deps, player(request)));
+
   // ── Objectifs ──
 
   app.get('/api/players/:tag/goals', async (request: Req) => listGoals(db, player(request).tag));
@@ -255,6 +262,63 @@ export function registerRoutes(app: FastifyInstance, deps: RouteDeps): void {
       .filter((tag): tag is string => tag !== null);
     const rows = tags.map((tag) => findPlayer(db, tag)).filter((row): row is PlayerRow => row !== undefined);
     return compareView(deps, rows.length ? rows : listPlayers(db).slice(0, 4));
+  });
+
+  // ── Sauvegardes & export ──
+
+  app.get('/api/backups', async () => listBackups(deps.backupDir));
+
+  app.post('/api/backups', async (_request, reply) => {
+    if (config.demo) throw new HttpError(400, 'Mode démo : pas de sauvegarde.');
+    reply.code(201);
+    return createBackup(db, deps.backupDir);
+  });
+
+  app.get('/api/players/:tag/export/:file', async (request: Req, reply: FastifyReply) => {
+    const row = player(request);
+    const slug = row.tag.slice(1);
+    let csv: string;
+    if (request.params.file === 'combats.csv') {
+      csv = toCsv(
+        ['date', 'type', 'mode', 'map', 'brawler', 'niveau', 'resultat', 'classement', 'trophees', 'duree_s', 'star_player', 'allies', 'adversaires'],
+        loadBattles(db, row.tag).map((b) => [
+          b.battleTime,
+          b.type,
+          b.mode,
+          b.map,
+          b.brawlerName,
+          b.brawlerPower,
+          b.outcome,
+          b.rank,
+          b.trophyChange,
+          b.duration,
+          b.starPlayer ? 1 : 0,
+          b.participants.filter((p) => p.side === 'ally').map((p) => `${p.name} (${p.brawlerName})`).join(', '),
+          b.participants.filter((p) => p.side === 'enemy').map((p) => `${p.name} (${p.brawlerName})`).join(', '),
+        ]),
+      );
+    } else if (request.params.file === 'progression.csv') {
+      csv = toCsv(
+        ['date', 'trophees', 'record', 'points_ranked', 'rang_ranked', 'niveau', 'brawlers', 'niveau_11', 'victoires_3v3'],
+        loadSnapshots(db, row.tag).map((s) => [
+          s.taken_at,
+          s.trophies,
+          s.highest_trophies,
+          s.ranked_elo,
+          s.ranked_rank,
+          s.exp_level,
+          s.brawlers_owned,
+          s.power11,
+          s.victories_3v3,
+        ]),
+      );
+    } else {
+      throw new HttpError(404, 'Export inconnu.');
+    }
+    return reply
+      .type('text/csv; charset=utf-8')
+      .header('content-disposition', `attachment; filename="${slug}-${request.params.file}"`)
+      .send(csv);
   });
 
   // ── Images (proxy + cache du CDN Brawlify) ──

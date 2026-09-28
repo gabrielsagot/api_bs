@@ -53,12 +53,13 @@ if (config.demo) {
 
 const catalog = new CatalogService(kv, client);
 const rotation = new RotationService(kv, client);
-const poller = client ? new Poller({ db, client, catalog, rotation, config }) : null;
+const backupDir = path.join(config.dataDir, 'backups');
+const poller = client ? new Poller({ db, client, catalog, rotation, config, backupDir }) : null;
 const images = new ImageCache(path.join(config.dataDir, 'img'));
 
 // ── Serveur HTTP ──
 const app = Fastify({ logger: false });
-registerRoutes(app, { db, catalog, rotation, config, keys, poller, images, version });
+registerRoutes(app, { db, catalog, rotation, config, keys, poller, images, version, backupDir });
 
 const hasWebBuild = fs.existsSync(path.join(config.webDistDir, 'index.html'));
 if (hasWebBuild) {

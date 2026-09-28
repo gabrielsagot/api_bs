@@ -6,7 +6,9 @@ import type {
   CollectionResponse,
   CompareResponse,
   CreateGoalInput,
+  BackupDto,
   GoalDto,
+  LiveSessionResponse,
   OverviewResponse,
   PlayerListItem,
   RankedResponse,
@@ -75,6 +77,14 @@ export const useCollection = (slug: string) => usePlayerData<CollectionResponse>
 export const useBrawler = (slug: string, id: string) => usePlayerData<BrawlerDetailResponse>(slug, `/brawlers/${id}`);
 export const useRotation = (slug: string) => usePlayerData<RotationResponse>(slug, '/rotation');
 export const useGoals = (slug: string) => usePlayerData<GoalDto[]>(slug, '/goals');
+export const useLiveSession = (slug: string) =>
+  useQuery({
+    queryKey: ['player', slug, '/session'],
+    queryFn: () => api<LiveSessionResponse>(`/players/${slug}/session`),
+    refetchInterval: 20_000,
+    placeholderData: keepPreviousData,
+  });
+export const useBackups = () => useQuery({ queryKey: ['backups'], queryFn: () => api<BackupDto[]>('/backups') });
 
 export const useCompare = (tags: string[]) =>
   useQuery({
@@ -99,6 +109,8 @@ export const useSetPrimary = () => useAction((slug: string) => api(`/players/${s
 export const useCreateGoal = (slug: string) =>
   useAction((input: CreateGoalInput) => api<GoalDto>(`/players/${slug}/goals`, { method: 'POST', body: JSON.stringify(input) }));
 export const useDeleteGoal = () => useAction((id: number) => api(`/goals/${id}`, { method: 'DELETE' }));
+export const useCreateBackup = () => useAction(() => api<BackupDto>('/backups', { method: 'POST' }));
+export const exportUrl = (slug: string, file: 'combats.csv' | 'progression.csv') => `/api/players/${slug}/export/${file}`;
 
 export const imageUrl = (kind: 'brawler' | 'icon' | 'map' | 'gadget' | 'starpower' | 'gear', id: number) =>
   `/api/img/${kind}/${id}.png`;

@@ -6,6 +6,7 @@ import type { Db } from './db';
 import { ingestBattleLog, ingestProfile } from './ingest';
 import { errorMessage, log } from './log';
 import { listPlayers } from './repo';
+import { backupIfDue } from './backup';
 import { refreshGoalAchievements } from './stats/goals';
 
 // Collecte en tâche de fond. L'API ne renvoie que les 25 derniers combats :
@@ -19,6 +20,7 @@ export interface PollerDeps {
   catalog: CatalogService;
   rotation: RotationService;
   config: AppConfig;
+  backupDir: string;
 }
 
 export class Poller {
@@ -95,6 +97,7 @@ export class Poller {
       for (const [label, task] of [
         ['Mise à jour du catalogue des brawlers', () => catalog.refreshIfStale()],
         ['Mise à jour de la rotation des événements', () => rotation.refreshIfStale()],
+        ['Sauvegarde hebdomadaire', async () => backupIfDue(db, this.deps.backupDir)],
       ] as const) {
         try {
           await task();

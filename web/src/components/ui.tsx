@@ -1,5 +1,6 @@
 import clsx from 'clsx';
-import { ArrowDownRight, ArrowUpRight, ChevronDown, LoaderCircle } from 'lucide-react';
+import { ArrowDownRight, ArrowUpRight, ChevronDown, CircleHelp, LoaderCircle } from 'lucide-react';
+import { Link } from 'react-router';
 import type { ButtonHTMLAttributes, ReactNode } from 'react';
 import type { Outcome, SetOutcome } from '../../../shared/types';
 import { fmtPct } from '../lib/format';
@@ -65,6 +66,20 @@ export function PageHeader({ title, subtitle, action }: { title: ReactNode; subt
 /** Rangée de filtres, toujours au-dessus du contenu qu'elle filtre. */
 export function FilterBar({ children }: { children: ReactNode }) {
   return <div className="mb-6 flex flex-wrap items-center gap-2">{children}</div>;
+}
+
+/** Lien discret vers la section correspondante de la documentation. */
+export function DocLink({ section, label = 'Aide' }: { section: string; label?: string }) {
+  return (
+    <Link
+      to={`/documentation#${section}`}
+      className="inline-flex items-center gap-1 rounded-full px-2 py-1 text-[13px] font-medium text-ink-2 hover:bg-fill hover:text-ink"
+      title="Voir la documentation de cette page"
+    >
+      <CircleHelp className="size-4" />
+      {label}
+    </Link>
+  );
 }
 
 // ── Contrôles ─────────────────────────────────────────────────

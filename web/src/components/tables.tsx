@@ -6,6 +6,7 @@ import { modeLabel } from '../../../shared/labels';
 import type { BreakdownRow } from '../../../shared/types';
 import { fmtInt, fmtPct, fmtSigned } from '../lib/format';
 import { BrawlerAvatar } from './avatars';
+import { EloChange } from './ranked';
 import { Meter } from './ui';
 
 export interface Column<T> {
@@ -186,6 +187,7 @@ export function BreakdownTable({
   limit = 8,
   showStar = false,
   showTrophies = false,
+  showElo = false,
   playerSlug,
   firstHeader,
   empty,
@@ -196,6 +198,7 @@ export function BreakdownTable({
   limit?: number;
   showStar?: boolean;
   showTrophies?: boolean;
+  showElo?: boolean;
   playerSlug?: string;
   firstHeader?: string;
   empty?: string;
@@ -266,6 +269,15 @@ export function BreakdownTable({
         </span>
       ),
       sort: (row) => row.trophyNet,
+    });
+  }
+  if (showElo && rows.some((row) => row.eloNet !== null)) {
+    columns.push({
+      key: 'elo',
+      header: 'Points',
+      align: 'right',
+      render: (row) => <EloChange value={row.eloNet} />,
+      sort: (row) => row.eloNet,
     });
   }
   return (

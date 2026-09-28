@@ -96,17 +96,24 @@ export class CatalogService {
   }
 
   private async fetchBrawlify(): Promise<Map<number, { rarity: string | null; className: string | null }>> {
-    const response = await this.fetchImpl('https://api.brawlify.com/v1/brawlers', {
-      headers: { accept: 'application/json', 'user-agent': 'brawl-dashboard (usage personnel)' },
-      signal: AbortSignal.timeout(10_000),
-    });
-    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    // L'API communautaire a changé d'adresse : on essaie la nouvelle puis l'ancienne.
+    let response: Response | null = null;
+    for (const url of ['https://api.brawlapi.com/v1/brawlers', 'https://api.brawlify.com/v1/brawlers']) {
+      response = await this.fetchImpl(url, {
+        headers: { accept: 'application/json', 'user-agent': 'brawl-dashboard (usage personnel)' },
+        signal: AbortSignal.timeout(10_000),
+      }).catch(() => null);
+      if (response?.ok && response.headers.get('content-type')?.includes('json')) break;
+      response = null;
+    }
+    if (!response) throw new Error('aucune source disponible');
     const data = (await response.json()) as { list?: unknown[]; items?: unknown[] } | unknown[];
     const list = Array.isArray(data) ? data : (data.list ?? data.items ?? []);
     const result = new Map<number, { rarity: string | null; className: string | null }>();
     for (const entry of list as { id?: number; rarity?: { name?: string }; class?: { name?: string } }[]) {
       if (typeof entry?.id !== 'number') continue;
-      result.set(entry.id, { rarity: entry.rarity?.name ?? null, className: entry.class?.name ?? null });
+      // Le champ « class » de cette API n'est plus une classe de brawler exploitable : on l'ignore.
+      result.set(entry.id, { rarity: entry.rarity?.name ?? null, className: null });
     }
     return result;
   }

@@ -6,7 +6,17 @@ import { tierName } from '../../../shared/labels';
 import type { ComparePlayerDto } from '../../../shared/types';
 import { BrawlerAvatar, PlayerIcon } from '../components/avatars';
 import { MultiSeriesChart } from '../components/charts';
-import { Card, CardHeader, EmptyState, ErrorState, LoadingState, PageHeader, Refetching, Segmented } from '../components/ui';
+import {
+  Card,
+  CardHeader,
+  DocLink,
+  EmptyState,
+  ErrorState,
+  LoadingState,
+  PageHeader,
+  Refetching,
+  Segmented,
+} from '../components/ui';
 import { useCompare, usePlayers } from '../lib/api';
 import { seriesColor } from '../lib/colors';
 import { fmtInt, fmtPct, fmtSigned } from '../lib/format';
@@ -84,7 +94,7 @@ export function ComparePage() {
 
   return (
     <>
-      <PageHeader title="Comparer" subtitle="Tes comptes et ceux de tes potes, côte à côte." />
+      <PageHeader title="Comparer" subtitle="Tes comptes et ceux de tes potes, côte à côte." action={<DocLink section="comparer" />} />
       <div className="mb-6 flex flex-wrap gap-2" role="group" aria-label="Joueurs comparés">
         {all.map((p) => {
           const active = chosen.includes(p.slug);

@@ -1,6 +1,6 @@
 import clsx from 'clsx';
 import { Link } from 'react-router';
-import type { TrophyBrawlerRow } from '../../../shared/types';
+import type { PrestigeCandidateDto, TrophyBrawlerRow } from '../../../shared/types';
 import { BrawlerAvatar } from '../components/avatars';
 import { ChartCard, DailyDeltaChart, TimeSeriesChart } from '../components/charts';
 import { DataTable, type Column } from '../components/tables';
@@ -8,6 +8,8 @@ import {
   Card,
   CardHeader,
   Delta,
+  DocLink,
+  EmptyState,
   ErrorState,
   FilterBar,
   LoadingState,
@@ -74,6 +76,22 @@ export function TrophiesPage() {
     },
     { key: 'games', header: 'Parties', align: 'right', wide: true, render: (row) => row.games || '—', sort: (row) => row.games },
     {
+      key: 'streak',
+      header: 'Série',
+      align: 'right',
+      wide: true,
+      render: (row) =>
+        row.currentWinStreak === null ? (
+          <span className="text-ink-3">—</span>
+        ) : (
+          <span title={`Série en cours : ${row.currentWinStreak} · record : ${row.maxWinStreak ?? '—'}`}>
+            <span className={row.currentWinStreak >= 3 ? 'font-semibold' : ''}>{row.currentWinStreak}</span>
+            <span className="text-ink-3"> / {row.maxWinStreak ?? '—'}</span>
+          </span>
+        ),
+      sort: (row) => row.currentWinStreak,
+    },
+    {
       key: 'winRate',
       header: 'Winrate',
       wide: true,
@@ -84,7 +102,7 @@ export function TrophiesPage() {
 
   return (
     <>
-      <PageHeader title="Trophées" subtitle="Ta progression sur le Trophy Road, jour après jour." />
+      <PageHeader title="Trophées" subtitle="Ta progression sur le Trophy Road, jour après jour." action={<DocLink section="trophees" />} />
       <FilterBar>
         <Segmented label="Période" value={period} onChange={setPeriod} options={PERIODS} />
       </FilterBar>
@@ -133,6 +151,42 @@ export function TrophiesPage() {
           <DailyDeltaChart days={data.daily} />
         </ChartCard>
 
+        <div className="mt-4 grid gap-4 lg:grid-cols-12">
+          <Card className="lg:col-span-8">
+            <CardHeader
+              title="Prochains paliers de prestige"
+              subtitle={`Un palier tous les 1 000 trophées${data.prestige.total !== null ? ` · prestige total : ${data.prestige.total}` : ''}`}
+            />
+            <DataTable
+              rows={data.prestige.candidates}
+              columns={prestigeColumns(slug)}
+              rowKey={(row) => String(row.id)}
+              limit={8}
+              empty="Aucun brawler débloqué."
+            />
+            <p className="mt-3 text-[12px] text-ink-3">
+              Estimation d’après le gain moyen par partie de trophées sur les 30 derniers jours, pour chaque brawler.
+            </p>
+          </Card>
+          <Card className="lg:col-span-4">
+            <CardHeader title="Séries en cours" subtitle="Victoires d’affilée, par brawler" />
+            {data.streaks.length ? (
+              <ul className="space-y-2.5">
+                {data.streaks.slice(0, 8).map((streak) => (
+                  <li key={streak.id} className="flex items-center gap-2.5 text-[14px]">
+                    <BrawlerAvatar id={streak.id} name={streak.name} size={28} />
+                    <span className="min-w-0 flex-1 truncate font-medium">{streak.name}</span>
+                    <span className="font-semibold tnum">{streak.current}</span>
+                    <span className="w-16 text-right text-[12px] text-ink-3 tnum">record {streak.max ?? '—'}</span>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <EmptyState title="Aucune série en cours">Deux victoires d’affilée avec un brawler suffisent pour apparaître ici.</EmptyState>
+            )}
+          </Card>
+        </div>
+
         <Card className="mt-4">
           <CardHeader title="Par brawler" subtitle={`${plural(data.brawlers.length, 'brawler')} · variation sur la période`} />
           <DataTable
@@ -146,4 +200,45 @@ export function TrophiesPage() {
       </Refetching>
     </>
   );
+}
+
+function prestigeColumns(slug: string): Column<PrestigeCandidateDto>[] {
+  return [
+    {
+      key: 'name',
+      header: 'Brawler',
+      render: (row) => (
+        <Link to={`/p/${slug}/brawlers/${row.id}`} className="flex min-w-0 items-center gap-2.5 hover:underline">
+          <BrawlerAvatar id={row.id} name={row.name} size={28} />
+          <span className="truncate font-medium">{row.name}</span>
+        </Link>
+      ),
+      sort: (row) => row.name,
+    },
+    { key: 'trophies', header: 'Trophées', align: 'right', render: (row) => fmtInt(row.trophies), sort: (row) => row.trophies },
+    {
+      key: 'next',
+      header: 'Palier',
+      align: 'right',
+      wide: true,
+      render: (row) => <span className="text-ink-2">{fmtInt(row.nextMilestone)}</span>,
+      sort: (row) => row.nextMilestone,
+    },
+    { key: 'remaining', header: 'Restant', align: 'right', render: (row) => fmtInt(row.remaining), sort: (row) => row.remaining },
+    {
+      key: 'avg',
+      header: 'Gain / partie',
+      align: 'right',
+      wide: true,
+      render: (row) => (row.avgPerGame === null ? <span className="text-ink-3">—</span> : fmtSigned(row.avgPerGame, 1)),
+      sort: (row) => row.avgPerGame,
+    },
+    {
+      key: 'eta',
+      header: 'Parties estimées',
+      align: 'right',
+      render: (row) => (row.gamesToNext === null ? <span className="text-ink-3">—</span> : `≈ ${fmtInt(row.gamesToNext)}`),
+      sort: (row) => row.gamesToNext,
+    },
+  ];
 }

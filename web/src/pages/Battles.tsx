@@ -7,6 +7,7 @@ import {
   Button,
   Card,
   CardHeader,
+  DocLink,
   EmptyState,
   ErrorState,
   FilterBar,
@@ -17,7 +18,8 @@ import {
   Select,
   StatTile,
 } from '../components/ui';
-import { useBattleList, useBattleStats } from '../lib/api';
+import { Download } from 'lucide-react';
+import { exportUrl, useBattleList, useBattleStats } from '../lib/api';
 import { fmtDateTime, fmtDuration, fmtInt, fmtPct, fmtSigned, plural } from '../lib/format';
 import { useNow, usePlayerSlug, useSearchParam } from '../lib/hooks';
 
@@ -57,7 +59,18 @@ export function BattlesPage() {
 
   return (
     <>
-      <PageHeader title="Combats" subtitle="Toutes tes parties enregistrées, à filtrer et à décortiquer." />
+      <PageHeader
+        title="Combats"
+        subtitle="Toutes tes parties enregistrées, à filtrer et à décortiquer."
+        action={
+          <>
+            <DocLink section="combats" />
+            <a href={exportUrl(slug, 'combats.csv')} className="inline-flex items-center gap-1 rounded-full px-2 py-1 text-[13px] font-medium text-accent hover:bg-accent-soft">
+              <Download className="size-4" /> Exporter en CSV
+            </a>
+          </>
+        }
+      />
       <FilterBar>
         <Segmented label="Période" value={period} onChange={setPeriod} options={PERIODS} />
         <Segmented label="Type de combat" value={category} onChange={setCategory} options={CATEGORIES} />

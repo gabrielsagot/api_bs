@@ -69,6 +69,7 @@ export function breakdown(
             winRate: null,
             starPlayers: 0,
             trophyNet: null,
+            eloNet: null,
           },
           trophyGames: 0,
         };

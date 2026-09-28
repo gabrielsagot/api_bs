@@ -5,6 +5,7 @@ import { battleTypeLabel, modeLabel, tierName } from '../../../shared/labels';
 import type { BattleDto, ParticipantDto, RankedSetDto } from '../../../shared/types';
 import { fmtDateTime, fmtDuration, fmtRelative, fmtSigned } from '../lib/format';
 import { BrawlerAvatar } from './avatars';
+import { EloChange } from './ranked';
 import { Pill, ResultBadge, SetBadge } from './ui';
 
 /** Rangée de portraits d'une équipe. */
@@ -27,6 +28,7 @@ export function SetRow({ set, now, compact = false }: { set: RankedSetDto; now: 
   return (
     <li className="flex items-center gap-3 py-2.5">
       <SetBadge outcome={set.outcome} wins={set.wins} losses={set.losses} />
+      {set.eloChange !== null && <EloChange value={set.eloChange} className="w-9 shrink-0 text-right text-[13px]" />}
       <BrawlerAvatar id={brawler?.brawlerId} name={brawler?.brawlerName} size={32} />
       <div className="min-w-0 flex-1">
         <div className="truncate text-[14px] font-medium">{set.map ?? modeLabel(set.mode)}</div>
@@ -95,9 +97,9 @@ export function BattleRow({ battle, now }: { battle: BattleDto; now: number }) {
             {battle.duration ? ` · ${fmtDuration(battle.duration)}` : ''}
           </div>
         </div>
-        <Pill tone={battle.category === 'ranked' ? 'accent' : 'neutral'} className="hidden sm:inline-flex">
-          {battleTypeLabel(battle.type)}
-        </Pill>
+        <span className="hidden sm:block">
+          <Pill tone={battle.category === 'ranked' ? 'accent' : 'neutral'}>{battleTypeLabel(battle.type)}</Pill>
+        </span>
         <span
           className={clsx(
             'w-10 shrink-0 text-right text-[13px] font-medium tnum',

@@ -1,18 +1,21 @@
 import { useState } from 'react';
 import { modeLabel, tierName } from '../../../shared/labels';
-import type { RankedQueue } from '../../../shared/types';
+import type { DuoRow, RankedQueue } from '../../../shared/types';
 import { BrawlerAvatar } from '../components/avatars';
 import { SetRow } from '../components/battles';
-import { RankedProgressCard } from '../components/ranked';
+import { EloChange, NextTierProgress, RankedProgressCard } from '../components/ranked';
+import { DataTable, type Column } from '../components/tables';
 import { BreakdownTable } from '../components/tables';
 import {
   Card,
   CardHeader,
   Delta,
+  DocLink,
   EmptyState,
   ErrorState,
   FilterBar,
   LoadingState,
+  Meter,
   PageHeader,
   Refetching,
   Segmented,
@@ -63,7 +66,7 @@ export function RankedPage() {
 
   return (
     <>
-      <PageHeader title="Ranked" subtitle="Tes parties classées, manche par manche et set par set." />
+      <PageHeader title="Ranked" subtitle="Tes parties classées, manche par manche et set par set." action={<DocLink section="ranked" />} />
       {filters}
       <Refetching active={isPlaceholderData}>
         {data.games.games === 0 ? (
@@ -113,22 +116,46 @@ export function RankedPage() {
               <StatTile label="Série en cours" value={streak.value} sub={streak.sub} />
             </div>
 
-            <RankedProgressCard
-              className="mt-4"
-              subtitle="Points enregistrés par le dashboard, ou marches du rang lues dans tes parties."
-              profile={data.profile}
-              timeline={data.timeline}
-              height={260}
-            />
+            <div className="mt-4 grid gap-4 lg:grid-cols-12">
+              <RankedProgressCard
+                className="lg:col-span-8"
+                subtitle="Points enregistrés par le dashboard, ou marches du rang lues dans tes parties."
+                profile={data.profile}
+                timeline={data.timeline}
+                height={260}
+              />
+              <Card className="lg:col-span-4">
+                <CardHeader title="Rang suivant" subtitle="Seuils estimés : 500 points par rang" />
+                {data.profile.nextTier !== null && data.profile.pointsToNext !== null ? (
+                  <NextTierProgress elo={data.profile.elo} next={data.profile} />
+                ) : (
+                  <EmptyState title="Seuil inconnu pour ce rang">Il apparaîtra quand tes points seront disponibles.</EmptyState>
+                )}
+                {data.profile.avgEloPerSet !== null && (
+                  <dl className="mt-5 grid grid-cols-2 gap-3 border-t border-line pt-4 text-[13px]">
+                    <div>
+                      <dt className="text-ink-2">Points par set</dt>
+                      <dd className="font-medium">
+                        <EloChange value={Math.round(data.profile.avgEloPerSet)} />
+                      </dd>
+                    </div>
+                    <div>
+                      <dt className="text-ink-2">Sets mesurés</dt>
+                      <dd className="font-medium tnum">{data.recentSets.filter((set) => set.eloChange !== null).length}</dd>
+                    </div>
+                  </dl>
+                )}
+              </Card>
+            </div>
 
             <div className="mt-4 grid gap-4 lg:grid-cols-2">
               <Card>
                 <CardHeader title="Par brawler" subtitle="Clique sur une colonne pour trier" />
-                <BreakdownTable rows={data.byBrawler} kind="brawler" showStar playerSlug={slug} />
+                <BreakdownTable rows={data.byBrawler} kind="brawler" showStar showElo playerSlug={slug} />
               </Card>
               <Card>
                 <CardHeader title="Par map" />
-                <BreakdownTable rows={data.byMap} kind="map" />
+                <BreakdownTable rows={data.byMap} kind="map" showElo />
               </Card>
             </div>
 
@@ -138,10 +165,18 @@ export function RankedPage() {
                 <BreakdownTable rows={data.vsBrawlers} kind="opponent" />
               </Card>
               <Card>
-                <CardHeader title="Coéquipiers réguliers" subtitle="Joueurs retrouvés à plusieurs occasions" />
-                <BreakdownTable rows={data.allies} kind="ally" empty="Aucun coéquipier régulier sur la période." />
+                <CardHeader title="Par mode" />
+                <BreakdownTable rows={data.byMode} kind="mode" showElo />
               </Card>
             </div>
+
+            <Card className="mt-4">
+              <CardHeader
+                title="Avec tes coéquipiers"
+                subtitle="Ton winrate avec chaque coéquipier régulier, comparé à tes parties sans lui, et vos meilleurs duos"
+              />
+              <DuoTable rows={data.duos} />
+            </Card>
 
             {data.mapPicks.length > 0 && (
               <Card className="mt-4">
@@ -196,5 +231,72 @@ export function RankedPage() {
         )}
       </Refetching>
     </>
+  );
+}
+
+function DuoTable({ rows }: { rows: DuoRow[] }) {
+  const columns: Column<DuoRow>[] = [
+    {
+      key: 'name',
+      header: 'Coéquipier',
+      render: (row) => (
+        <span className="block min-w-0">
+          <span className="block truncate font-medium">{row.name}</span>
+          <span className="block truncate text-[12px] text-ink-3">{row.tag}</span>
+        </span>
+      ),
+      sort: (row) => row.name,
+    },
+    { key: 'games', header: 'Ensemble', align: 'right', render: (row) => row.games, sort: (row) => row.games },
+    { key: 'winRate', header: 'Winrate ensemble', render: (row) => <Meter value={row.winRate} className="min-w-[120px]" />, sort: (row) => row.winRate },
+    {
+      key: 'without',
+      header: 'Sans lui',
+      align: 'right',
+      wide: true,
+      render: (row) => <span className="text-ink-2">{fmtPct(row.withoutWinRate)}</span>,
+      sort: (row) => row.withoutWinRate,
+    },
+    {
+      key: 'gap',
+      header: 'Écart',
+      align: 'right',
+      render: (row) => {
+        const gap = row.winRate !== null && row.withoutWinRate !== null ? row.winRate - row.withoutWinRate : null;
+        return <Delta value={gap}>{fmtPts(gap)}</Delta>;
+      },
+      sort: (row) => (row.winRate !== null && row.withoutWinRate !== null ? row.winRate - row.withoutWinRate : null),
+    },
+    { key: 'elo', header: 'Points', align: 'right', wide: true, render: (row) => <EloChange value={row.eloNet} />, sort: (row) => row.eloNet },
+    {
+      key: 'pairs',
+      header: 'Meilleurs duos',
+      wide: true,
+      render: (row) =>
+        row.pairs.length ? (
+          <span className="flex flex-col gap-1">
+            {row.pairs.map((pair) => (
+              <span key={`${pair.myId}-${pair.allyId}`} className="flex items-center gap-1.5 text-[12px]" title={`${pair.myName} + ${pair.allyName}`}>
+                <BrawlerAvatar id={pair.myId} name={pair.myName} size={20} />
+                <span className="text-ink-3">+</span>
+                <BrawlerAvatar id={pair.allyId} name={pair.allyName} size={20} />
+                <span className="font-medium tnum">{fmtPct(pair.winRate)}</span>
+                <span className="text-ink-3 tnum">{pair.wins}–{pair.losses}</span>
+              </span>
+            ))}
+          </span>
+        ) : (
+          <span className="text-[12px] text-ink-3">2 parties min. par duo</span>
+        ),
+    },
+  ];
+  return (
+    <DataTable
+      rows={rows}
+      columns={columns}
+      rowKey={(row) => row.tag}
+      initialSort={{ key: 'games', desc: true }}
+      empty="Aucun coéquipier retrouvé à plusieurs occasions sur la période."
+    />
   );
 }

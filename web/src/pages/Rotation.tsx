@@ -1,7 +1,7 @@
 import { modeLabel } from '../../../shared/labels';
 import type { RotationEventDto } from '../../../shared/types';
 import { BrawlerAvatar, MapImage } from '../components/avatars';
-import { Card, EmptyState, ErrorState, LoadingState, Meter, PageHeader, Refetching } from '../components/ui';
+import { Card, DocLink, EmptyState, ErrorState, LoadingState, Meter, PageHeader, Refetching } from '../components/ui';
 import { useRotation } from '../lib/api';
 import { fmtPct, fmtRelative, fmtRemaining, plural } from '../lib/format';
 import { useNow, usePlayerSlug } from '../lib/hooks';
@@ -70,7 +70,12 @@ export function RotationPage() {
       <PageHeader
         title="Rotation"
         subtitle="Les maps du moment, et les brawlers qui te réussissent le mieux dessus d’après ton historique."
-        action={data.fetchedAt ? <span className="text-[12px] text-ink-3">Rotation lue {fmtRelative(data.fetchedAt, now)}</span> : undefined}
+        action={
+          <>
+            {data.fetchedAt && <span className="text-[12px] text-ink-3">Rotation lue {fmtRelative(data.fetchedAt, now)}</span>}
+            <DocLink section="rotation" />
+          </>
+        }
       />
       <Refetching active={isPlaceholderData}>
         {data.events.length ? (

@@ -4,8 +4,19 @@ import { useState, type FormEvent, type ReactNode } from 'react';
 import { normalizeTag } from '../../../shared/tags';
 import type { KeyStatusDto } from '../../../shared/types';
 import { PlayerIcon } from '../components/avatars';
-import { Button, Card, CardHeader, ErrorState, LoadingState, PageHeader, Pill } from '../components/ui';
-import { useAddPlayer, usePlayers, useRefresh, useRemovePlayer, useRenewKey, useSetPrimary, useStatus } from '../lib/api';
+import { Button, Card, CardHeader, DocLink, ErrorState, LoadingState, PageHeader, Pill } from '../components/ui';
+import {
+  exportUrl,
+  useAddPlayer,
+  useBackups,
+  useCreateBackup,
+  usePlayers,
+  useRefresh,
+  useRemovePlayer,
+  useRenewKey,
+  useSetPrimary,
+  useStatus,
+} from '../lib/api';
 import { fmtBytes, fmtDate, fmtDateTime, fmtInt, fmtRelative } from '../lib/format';
 import { useNow } from '../lib/hooks';
 
@@ -86,7 +97,7 @@ export function SettingsPage() {
 
   return (
     <>
-      <PageHeader title="Réglages" />
+      <PageHeader title="Réglages" action={<DocLink section="reglages" />} />
       <div className="grid gap-4 lg:grid-cols-2">
         <Card className="lg:col-span-2">
           <CardHeader title="Joueurs suivis" subtitle="Tes comptes et ceux de tes potes. Le joueur principal s’ouvre par défaut." />
@@ -222,6 +233,8 @@ export function SettingsPage() {
           </dl>
         </Card>
 
+        <BackupsCard demo={demo} />
+
         <Card className="lg:col-span-2">
           <p className="text-[12px] leading-relaxed text-ink-3">
             Brawl Dashboard {status.data.version} · Données : API officielle Brawl Stars. Images : CDN communautaire Brawlify. Ce
@@ -231,5 +244,62 @@ export function SettingsPage() {
         </Card>
       </div>
     </>
+  );
+}
+
+function BackupsCard({ demo }: { demo: boolean }) {
+  const backups = useBackups();
+  const create = useCreateBackup();
+  const players = usePlayers().data ?? [];
+  return (
+    <Card className="lg:col-span-2">
+      <CardHeader
+        title="Sauvegardes et export"
+        subtitle="Une copie de la base est faite automatiquement chaque semaine dans data/backups (les 8 dernières sont gardées)."
+        action={
+          !demo && (
+            <Button onClick={() => create.mutate(undefined)} loading={create.isPending}>
+              Sauvegarder maintenant
+            </Button>
+          )
+        }
+      />
+      <div className="grid gap-6 md:grid-cols-2">
+        <div>
+          <h3 className="mb-2 text-[13px] font-medium text-ink-2">Sauvegardes</h3>
+          {backups.data?.length ? (
+            <ul className="text-[14px]">
+              {backups.data.map((backup) => (
+                <li key={backup.name} className="flex items-baseline justify-between gap-3 border-t border-line py-2 first:border-t-0">
+                  <span className="truncate">{fmtDateTime(backup.createdAt)}</span>
+                  <span className="shrink-0 text-[12px] text-ink-3">{fmtBytes(backup.sizeBytes)}</span>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p className="text-[13px] text-ink-3">Aucune sauvegarde pour l’instant.</p>
+          )}
+          {create.error && <p className="mt-2 text-[13px] text-bad">{create.error.message}</p>}
+        </div>
+        <div>
+          <h3 className="mb-2 text-[13px] font-medium text-ink-2">Export CSV (Excel, Numbers…)</h3>
+          <ul className="text-[14px]">
+            {players.map((player) => (
+              <li key={player.slug} className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1 border-t border-line py-2 first:border-t-0">
+                <span className="truncate font-medium">{player.name}</span>
+                <span className="flex gap-3 text-[13px]">
+                  <a href={exportUrl(player.slug, 'combats.csv')} className="font-medium text-accent hover:underline">
+                    Combats
+                  </a>
+                  <a href={exportUrl(player.slug, 'progression.csv')} className="font-medium text-accent hover:underline">
+                    Progression
+                  </a>
+                </span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      </div>
+    </Card>
   );
 }
