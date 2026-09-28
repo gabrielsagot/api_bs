@@ -1,0 +1,15 @@
+# Collecte 24 h/24 : docker compose up -d
+# Les données restent dans ./data sur la machine hôte (sauvegardes comprises).
+services:
+  brawl-dashboard:
+    build: .
+    container_name: brawl-dashboard
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      HOST: 0.0.0.0
+      DATA_DIR: /app/data
+    ports:
+      - "4777:4777"
+    volumes:
+      - ./data:/app/data
