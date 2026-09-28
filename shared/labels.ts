@@ -109,6 +109,38 @@ export function tierShortName(tier: number): string {
   return tierName(tier).replace('Légendaire', 'Lég.').replace('Mythique', 'Myth.').replace('Diamant', 'Diam.');
 }
 
+// Gloire (« fame ») : 8 paliers de 3 niveaux. L'API renvoie « METEORIC FAME I ».
+export const FAME_TIERS = ['GLOBAL', 'LUNAR', 'MARTIAN', 'SATURNIAN', 'SOLAR', 'METEORIC', 'ALIEN', 'STARR FORCE'] as const;
+export type FameTier = (typeof FAME_TIERS)[number];
+
+const FAME_LABELS: Record<FameTier, string> = {
+  GLOBAL: 'mondiale',
+  LUNAR: 'lunaire',
+  MARTIAN: 'martienne',
+  SATURNIAN: 'saturnienne',
+  SOLAR: 'solaire',
+  METEORIC: 'météorique',
+  ALIEN: 'extraterrestre',
+  'STARR FORCE': 'Starr Force',
+};
+
+/** 'METEORIC FAME I' → { tier: 'METEORIC', level: 'I' } (tolère « SATURNAL »). */
+export function parseFame(name?: string | null): { tier: FameTier | null; level: string | null } {
+  if (!name) return { tier: null, level: null };
+  const match = /^(.*?)\s*FAME\s*([IVX]+)?$/i.exec(name.trim());
+  const raw = (match?.[1] ?? name).toUpperCase().replace('SATURNAL', 'SATURNIAN').trim();
+  const tier = (FAME_TIERS as readonly string[]).includes(raw) ? (raw as FameTier) : null;
+  return { tier, level: match?.[2]?.toUpperCase() ?? null };
+}
+
+/** 'METEORIC FAME I' → 'Gloire météorique I' ; un palier inconnu est simplement embelli. */
+export function fameLabel(name?: string | null): string | null {
+  if (!name) return null;
+  const { tier, level } = parseFame(name);
+  if (!tier) return titleCase(name);
+  return ['Gloire', FAME_LABELS[tier], level].filter(Boolean).join(' ');
+}
+
 const RARITY_LABELS: Record<string, string> = {
   'Starting Brawler': 'Départ',
   Common: 'Commun',

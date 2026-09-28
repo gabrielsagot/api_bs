@@ -1,6 +1,8 @@
 import clsx from 'clsx';
 import { useState } from 'react';
+import { modeLabel, tierName } from '../../../shared/labels';
 import { imageUrl } from '../lib/api';
+import { modeIconId, tierIconId } from '../lib/bs';
 
 function initials(name: string | null | undefined): string {
   if (!name) return '?';
@@ -82,4 +84,37 @@ export function MapImage({ eventId, className }: { eventId: number | null; class
       className={clsx('rounded-xl bg-fill object-cover', className)}
     />
   );
+}
+
+/** Petite image sans fond (emblème, icône de mode) : rien si elle manque. */
+function Glyph({ src, size, title, className }: { src: string; size: number; title?: string; className?: string }) {
+  const [failed, setFailed] = useState(false);
+  if (failed) return null;
+  return (
+    <img
+      src={src}
+      alt=""
+      title={title}
+      width={size}
+      height={size}
+      loading="lazy"
+      onError={() => setFailed(true)}
+      style={{ width: size, height: size }}
+      className={clsx('inline-block shrink-0 object-contain', className)}
+    />
+  );
+}
+
+/** Emblème officiel du rang Ranked (Bronze I … Pro). */
+export function RankIcon({ tier, size = 20, className }: { tier: number | null | undefined; size?: number; className?: string }) {
+  const id = tierIconId(tier);
+  if (id === null) return null;
+  return <Glyph src={imageUrl('rank', id)} size={size} title={tierName(tier)} className={className} />;
+}
+
+/** Icône du mode de jeu (Razzia de gemmes, Brawlball…). */
+export function ModeIcon({ mode, size = 16, className }: { mode: string | null | undefined; size?: number; className?: string }) {
+  const id = modeIconId(mode);
+  if (id === null) return null;
+  return <Glyph src={imageUrl('mode', id)} size={size} title={modeLabel(mode)} className={className} />;
 }

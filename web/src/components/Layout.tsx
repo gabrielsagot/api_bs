@@ -26,6 +26,7 @@ import { usePlayers, useRefresh, useStatus } from '../lib/api';
 import { fmtInt, fmtRelative } from '../lib/format';
 import { useNow } from '../lib/hooks';
 import { PlayerIcon } from './avatars';
+import { PlayerName } from './bs';
 
 interface NavItem {
   to: string;
@@ -68,7 +69,7 @@ function PlayerSwitcher({ players, current, compact = false }: { players: Player
     <label className={clsx('relative flex min-w-0 cursor-pointer items-center gap-2.5 rounded-xl', compact ? 'py-1' : 'bg-fill px-2.5 py-2 hover:bg-[#ebebf0]')}>
       <PlayerIcon iconId={current.iconId} name={current.name} size={compact ? 30 : 34} />
       <span className="min-w-0 flex-1">
-        <span className="block truncate text-[14px] font-semibold leading-tight">{current.name}</span>
+        <PlayerName name={current.name} color={current.nameColor} className="block truncate text-[14px] font-semibold leading-tight" />
         <span className="block truncate text-[12px] text-ink-2">
           {current.trophies !== null ? `${fmtInt(current.trophies)} trophées` : current.tag}
         </span>

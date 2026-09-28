@@ -1,10 +1,12 @@
 import { Link } from 'react-router';
-import { tierName, titleCase } from '../../../shared/labels';
+import { tierName } from '../../../shared/labels';
 import type { StreakDto } from '../../../shared/types';
 import { SetRow } from '../components/battles';
 import { GoalsCard, SessionCard } from '../components/cards';
 import { Sparkline } from '../components/charts';
-import { NextTierProgress, RankedProgressCard, tierWithElo } from '../components/ranked';
+import { PlayerIcon, RankIcon } from '../components/avatars';
+import { FameBadge, PlayerName, TierLabel } from '../components/bs';
+import { NextTierProgress, RankedProgressCard } from '../components/ranked';
 import { BreakdownTable } from '../components/tables';
 import { Card, CardHeader, Delta, DocLink, EmptyState, ErrorState, LoadingState, PageHeader, Refetching, StatTile } from '../components/ui';
 import { useOverview } from '../lib/api';
@@ -37,14 +39,24 @@ export function HomePage() {
     <Refetching active={isPlaceholderData}>
       <PageHeader
         action={<DocLink section="accueil" />}
-        title={player.name}
+        title={
+          <span className="flex min-w-0 items-center gap-3">
+            <PlayerIcon iconId={player.iconId} name={player.name} size={44} />
+            <PlayerName name={player.name} color={player.nameColor} className="truncate" />
+          </span>
+        }
         subtitle={
-          <>
-            {player.tag}
-            {player.clubName && ` · ${player.clubName}`}
-            {player.expLevel !== null && ` · niveau ${player.expLevel}`}
-            {player.fameTierName && ` · ${titleCase(player.fameTierName)}`}
-          </>
+          <span className="flex flex-wrap items-center gap-x-1.5">
+            <span>{player.tag}</span>
+            {player.clubName && <span>· {player.clubName}</span>}
+            {player.expLevel !== null && <span>· niveau {player.expLevel}</span>}
+            {player.fameTierName && (
+              <>
+                <span>·</span>
+                <FameBadge name={player.fameTierName} fame={player.fame} />
+              </>
+            )}
+          </span>
         }
       />
 
@@ -56,8 +68,9 @@ export function HomePage() {
           </div>
           {hasRanked ? (
             <>
-              <div className="mt-3 text-[44px] font-semibold leading-none tracking-[-0.03em] sm:text-[56px]">
-                {tierName(ranked.currentTier)}
+              <div className="mt-3 flex items-center gap-3 text-[36px] font-semibold leading-none tracking-[-0.03em] sm:text-[44px]">
+                <RankIcon tier={ranked.currentTier} size={52} className="-my-1" />
+                <span className="min-w-0 whitespace-nowrap">{tierName(ranked.currentTier)}</span>
               </div>
               {ranked.profile.elo !== null && (
                 <div className="mt-3 flex flex-wrap items-baseline gap-x-2 text-[15px]">
@@ -72,22 +85,38 @@ export function HomePage() {
                   <>
                     <div className="flex gap-1.5">
                       <dt className="text-ink-2">Record saison</dt>
-                      <dd className="font-medium">{tierWithElo(ranked.profile.seasonBestTier, ranked.profile.seasonBestElo)}</dd>
+                      <dd className="font-medium">
+                        <TierLabel
+                          tier={ranked.profile.seasonBestTier}
+                          size={16}
+                          suffix={ranked.profile.seasonBestElo !== null ? ` · ${fmtInt(ranked.profile.seasonBestElo)}` : null}
+                        />
+                      </dd>
                     </div>
                     <div className="flex gap-1.5">
                       <dt className="text-ink-2">Record absolu</dt>
-                      <dd className="font-medium">{tierWithElo(ranked.profile.allTimeBestTier, ranked.profile.allTimeBestElo)}</dd>
+                      <dd className="font-medium">
+                        <TierLabel
+                          tier={ranked.profile.allTimeBestTier}
+                          size={16}
+                          suffix={ranked.profile.allTimeBestElo !== null ? ` · ${fmtInt(ranked.profile.allTimeBestElo)}` : null}
+                        />
+                      </dd>
                     </div>
                   </>
                 ) : (
                   <>
                     <div className="flex gap-1.5">
                       <dt className="text-ink-2">Meilleur sur 30 j</dt>
-                      <dd className="font-medium">{tierName(ranked.bestTier)}</dd>
+                      <dd className="font-medium">
+                        <TierLabel tier={ranked.bestTier} size={16} />
+                      </dd>
                     </div>
                     <div className="flex gap-1.5">
                       <dt className="text-ink-2">Il y a 30 j</dt>
-                      <dd className="font-medium">{tierName(ranked.startTier)}</dd>
+                      <dd className="font-medium">
+                        <TierLabel tier={ranked.startTier} size={16} />
+                      </dd>
                     </div>
                   </>
                 )}

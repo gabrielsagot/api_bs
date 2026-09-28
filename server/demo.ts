@@ -218,7 +218,8 @@ function createPlayer(
     tag: options.tag,
     name: options.name,
     iconId: options.iconId,
-    nameColor: '0xffffffff',
+    // Couleurs de pseudo du jeu, choisies d'après le tag (le blanc est la couleur par défaut).
+    nameColor: DEMO_NAME_COLORS[[...options.tag].reduce((sum, ch) => sum + ch.charCodeAt(0), 0) % DEMO_NAME_COLORS.length],
     club: { tag: '#2GQ8JPUV', name: 'Les Croissants' },
     brawlers,
     locked: catalog.map((c) => c.id).filter((id) => !brawlers.has(id)),
@@ -235,6 +236,9 @@ function createPlayer(
     favorites,
   };
 }
+
+const DEMO_NAME_COLORS = ['0xfff05637', '0xff1ba5f5', '0xffcb5aff', '0xff4ddba2', '0xffffffff'];
+const DEMO_FAME_TIERS = ['SOLAR FAME III', 'METEORIC FAME I', 'MARTIAN FAME II'];
 
 function toApiPlayer(sim: SimPlayer): ApiPlayer {
   const brawlers = [...sim.brawlers.values()];
@@ -260,7 +264,8 @@ function toApiPlayer(sim: SimPlayer): ApiPlayer {
     highestSeasonRankedElo: sim.seasonBestElo,
     highestAllTimeRankedRank: Math.floor(sim.bestElo / 500) + 4,
     highestAllTimeRankedElo: sim.bestElo,
-    fameTierName: 'RISING FAME II',
+    fame: 30_000 + sim.expLevel * 350,
+    fameTierName: DEMO_FAME_TIERS[sim.expLevel % DEMO_FAME_TIERS.length],
     club: sim.club,
     brawlers: brawlers.map((b) => ({
       id: b.id,

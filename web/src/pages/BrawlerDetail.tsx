@@ -1,9 +1,9 @@
 import clsx from 'clsx';
 import { Check, ChevronLeft } from 'lucide-react';
 import { Link, useParams } from 'react-router';
-import { rarityLabel } from '../../../shared/labels';
 import type { AccessoryDto } from '../../../shared/types';
 import { BrawlerAvatar } from '../components/avatars';
+import { RarityTag } from '../components/bs';
 import { BattleRow } from '../components/battles';
 import { ChartCard, TimeSeriesChart } from '../components/charts';
 import { BreakdownTable } from '../components/tables';
@@ -63,7 +63,11 @@ export function BrawlerDetailPage() {
           <h1 className="text-[28px] font-semibold leading-tight tracking-[-0.02em] sm:text-[32px]">{card.name}</h1>
           <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
             {card.owned ? <Pill tone="accent">Niveau {card.power}</Pill> : <Pill>À débloquer</Pill>}
-            {card.rarity && <Pill>{rarityLabel(card.rarity)}</Pill>}
+            {card.rarity && (
+              <Pill>
+                <RarityTag rarity={card.rarity} />
+              </Pill>
+            )}
             {card.prestige ? <Pill>Prestige {card.prestige}</Pill> : null}
             {card.cost?.maxed && <Pill tone="good">Complet</Pill>}
           </div>

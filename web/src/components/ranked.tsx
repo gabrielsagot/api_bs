@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { tierName } from '../../../shared/labels';
 import type { RankedProfileDto, TierPoint } from '../../../shared/types';
 import { fmtDateTime, fmtInt, fmtSigned } from '../lib/format';
+import { TierLabel } from './bs';
 import { ChartCard, TierChart, TimeSeriesChart } from './charts';
 import { ProgressBar, Segmented } from './ui';
 
@@ -94,7 +95,7 @@ export function NextTierProgress({
       <div className="flex items-baseline justify-between gap-3 text-[13px]">
         <span className="text-ink-2">
           Encore <strong className="font-semibold text-ink">{fmtInt(next.pointsToNext)} points</strong> avant{' '}
-          {tierName(next.nextTier)}
+          <TierLabel tier={next.nextTier} size={16} className="font-medium text-ink" />
         </span>
         {!compact && <span className="shrink-0 text-ink-3 tnum">{fmtInt(next.nextTierElo)}</span>}
       </div>

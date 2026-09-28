@@ -5,6 +5,7 @@ import { Link } from 'react-router';
 import { rarityLabel } from '../../../shared/labels';
 import type { AccessoryDto, BrawlerCardDto } from '../../../shared/types';
 import { BrawlerAvatar } from '../components/avatars';
+import { RarityTag } from '../components/bs';
 import {
   Card,
   CardHeader,
@@ -82,8 +83,9 @@ function BrawlerTile({ brawler, slug }: { brawler: BrawlerCardDto; slug: string 
         <BrawlerAvatar id={brawler.id} name={brawler.name} size={48} muted={!brawler.owned} />
         <div className="min-w-0 flex-1">
           <div className="text-[14px] font-semibold leading-snug group-hover:underline">{brawler.name}</div>
-          <div className="truncate text-[12px] text-ink-2">
-            {[brawler.owned ? `Niv. ${brawler.power}` : null, rarityLabel(brawler.rarity)].filter(Boolean).join(' · ')}
+          <div className="text-[12px] leading-tight text-ink-2">
+            {brawler.owned && <div>Niv. {brawler.power}</div>}
+            <RarityTag rarity={brawler.rarity} className="mt-0.5 max-w-full" />
           </div>
         </div>
       </div>

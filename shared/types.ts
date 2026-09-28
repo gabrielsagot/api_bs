@@ -13,6 +13,8 @@ export interface PlayerListItem {
   tag: string;
   slug: string;
   name: string;
+  /** Couleur du pseudo choisie dans le jeu, au format de l'API (« 0xfff05637 »). */
+  nameColor: string | null;
   iconId: number | null;
   isPrimary: boolean;
   colorSlot: number;
@@ -24,7 +26,6 @@ export interface PlayerListItem {
 }
 
 export interface PlayerProfileDto extends PlayerListItem {
-  nameColor: string | null;
   clubTag: string | null;
   highestTrophies: number | null;
   expLevel: number | null;
@@ -558,6 +559,7 @@ export interface ComparePlayerDto {
   tag: string;
   slug: string;
   name: string;
+  nameColor: string | null;
   iconId: number | null;
   colorSlot: number;
   trophies: number | null;

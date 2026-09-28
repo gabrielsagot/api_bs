@@ -1,10 +1,10 @@
 import clsx from 'clsx';
 import { Search } from 'lucide-react';
-import { useMemo, useState } from 'react';
+import { useMemo, useState, type ReactNode } from 'react';
 import { Link } from 'react-router';
-import { tierName } from '../../../shared/labels';
 import type { ComparePlayerDto } from '../../../shared/types';
 import { BrawlerAvatar, PlayerIcon } from '../components/avatars';
+import { PlayerName, TierLabel } from '../components/bs';
 import { MultiSeriesChart } from '../components/charts';
 import {
   Card,
@@ -26,14 +26,14 @@ const MAX_SELECTED = 4;
 interface Metric {
   label: string;
   value: (p: ComparePlayerDto) => number | null;
-  format: (v: number | null) => string;
+  format: (v: number | null) => ReactNode;
 }
 
 const METRICS: Metric[] = [
   { label: 'Trophées', value: (p) => p.trophies, format: fmtInt },
   { label: 'Record', value: (p) => p.highestTrophies, format: fmtInt },
   { label: 'Variation sur 7 j', value: (p) => p.trophyDelta7d, format: (v) => fmtSigned(v) },
-  { label: 'Rang Ranked', value: (p) => p.rankedTier, format: (v) => tierName(v) },
+  { label: 'Rang Ranked', value: (p) => p.rankedTier, format: (v) => (v === null ? '—' : <TierLabel tier={v} size={16} className="justify-end" />) },
   { label: 'Points Ranked', value: (p) => p.rankedElo, format: fmtInt },
   { label: 'Winrate Ranked · 30 j', value: (p) => p.rankedWinRate30d, format: (v) => fmtPct(v, 1) },
   { label: 'Parties sur 7 j', value: (p) => p.games7d.games, format: fmtInt },
@@ -110,7 +110,7 @@ export function ComparePage() {
               )}
             >
               <PlayerIcon iconId={p.iconId} name={p.name} size={24} />
-              {p.name}
+              <PlayerName name={p.name} color={p.nameColor} minContrast={4.5} className={active ? undefined : 'opacity-60'} />
               <span className="size-2 rounded-full" style={{ background: active ? seriesColor(p.colorSlot) : '#d2d2d7' }} aria-hidden />
             </button>
           );
@@ -129,7 +129,7 @@ export function ComparePage() {
                     <th key={p.slug} className="px-2 pb-3 text-right text-[13px] font-semibold">
                       <span className="inline-flex items-center gap-1.5">
                         <span className="h-[2px] w-3 rounded-full" style={{ background: seriesColor(p.colorSlot) }} aria-hidden />
-                        {p.name}
+                        <PlayerName name={p.name} color={p.nameColor} minContrast={4.5} />
                       </span>
                     </th>
                   ))}
