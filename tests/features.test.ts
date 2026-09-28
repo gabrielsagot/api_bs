@@ -10,7 +10,7 @@ import { duoStats } from '../server/stats/duo';
 import { attachEloChanges, defaultTierThreshold, nextTierInfo, tierThresholds } from '../server/stats/elo';
 import { groupRankedSets } from '../server/stats/ranked';
 import { withBattleSamples } from '../server/stats/trophies';
-import { playTimeline } from '../web/src/lib/playtime';
+import { playPoints, playTimeline } from '../web/src/lib/playtime';
 import { fameLabel } from '../shared/labels';
 import { NAME_STYLES, guessNameStyle } from '../shared/nameStyles';
 import { contrastRatio, modeIconId, nameStyleCss, tierIconId } from '../web/src/lib/bs';
@@ -245,6 +245,18 @@ describe('axe du temps de jeu', () => {
     expect(timeline.toTime(timeline.toX(t(745)))).toBe(t(745));
     // La reprise après la nuit est graduée.
     expect(timeline.ticks).toContain(timeline.toX(t(740)));
+  });
+
+  it('traite un palier sans changement comme une pause (Ranked pendant la courbe des trophées)', () => {
+    // Trophées : +8 puis +6, ensuite 3 h de Ranked (mesures toutes les 2 min, trophées inchangés), puis +10.
+    const flat = Array.from({ length: 90 }, (_, i) => ({ t: t(10 + i * 2), v: 114 }));
+    const points = [{ t: t(0), v: 100 }, { t: t(5), v: 108 }, ...flat, { t: t(190), v: 124 }];
+    const kept = playPoints(points);
+    expect(kept.map((p) => p.v)).toEqual([100, 108, 114, 114, 124]);
+    const timeline = playTimeline(kept.map((p) => p.t));
+    expect(timeline.pauses).toHaveLength(1);
+    // Les 3 h de palier ne pèsent plus qu'une petite part de l'axe.
+    expect(timeline.pauses[0].x2 - timeline.pauses[0].x1).toBeLessThan(timeline.maxX * 0.2);
   });
 
   it('ne compresse rien sans pause', () => {

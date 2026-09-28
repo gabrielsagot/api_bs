@@ -8,7 +8,7 @@ import { useStatus } from '../lib/api';
 // Documentation intégrée. À TENIR À JOUR : toute fonctionnalité ajoutée, modifiée
 // ou retirée dans l'app doit être reflétée ici (voir CLAUDE.md).
 
-const DOC_VERSION = '1.2.2';
+const DOC_VERSION = '1.2.3';
 
 interface Section {
   id: string;
@@ -189,10 +189,11 @@ const SECTIONS: Section[] = [
         <H3>Lire les courbes</H3>
         <P>
           Les courbes dans le temps (trophées, points Ranked, rang, Comparer, mini-courbe de l’Accueil) utilisent un axe en{' '}
-          <strong>temps de jeu</strong> : les trophées et les points ne bougent que quand tu joues. Chaque pause de plus de
-          30 minutes sans mesure (la nuit, une journée sans jouer) est réduite à une fine bande grise ; la graduation
-          suivante indique l’heure (ou le jour) de reprise. L’info-bulle et la vue tableau donnent toujours l’heure réelle
-          de chaque mesure.
+          <strong>temps de jeu</strong> : les trophées et les points ne bougent que quand tu joues. Chaque période de plus
+          de 15 minutes sans changement de la valeur tracée (la nuit, une journée sans jouer, ou une session de Ranked
+          pour la courbe des trophées et inversement) est réduite à une fine bande grise ; la graduation suivante indique
+          l’heure (ou le jour) de reprise. La courbe s’arrête à la dernière variation. L’info-bulle et la vue tableau
+          donnent toujours l’heure réelle de chaque mesure.
         </P>
         <H3>Repères visuels du jeu</H3>
         <List>
@@ -1019,6 +1020,14 @@ const SECTIONS: Section[] = [
     keywords: 'versions changelog nouveautés',
     body: (
       <>
+        <H3>1.2.3</H3>
+        <List>
+          <li>
+            Courbes en temps de jeu : une période sans variation de la valeur tracée compte aussi comme une pause (Ranked
+            pour la courbe des trophées, et inversement) ; seuil ramené à 15 minutes ; la courbe s’arrête à la dernière
+            variation.
+          </li>
+        </List>
         <H3>1.2.2</H3>
         <List>
           <li>
