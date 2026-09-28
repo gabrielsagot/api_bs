@@ -368,6 +368,8 @@ export interface TrophiesResponse {
   highest: number | null;
   delta: number | null;
   series: SeriesPoint[];
+  /** Date du premier relevé du dashboard quand la courbe a été reconstituée avant lui à partir des combats. */
+  reconstructedUntil: string | null;
   daily: DailyDelta[];
   trophyGames: WinLoss & { trophyNet: number; avgPerGame: number | null };
   brawlers: TrophyBrawlerRow[];

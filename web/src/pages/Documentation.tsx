@@ -8,7 +8,7 @@ import { useStatus } from '../lib/api';
 // Documentation intégrée. À TENIR À JOUR : toute fonctionnalité ajoutée, modifiée
 // ou retirée dans l'app doit être reflétée ici (voir CLAUDE.md).
 
-const DOC_VERSION = '1.1.1';
+const DOC_VERSION = '1.1.2';
 
 interface Section {
   id: string;
@@ -323,7 +323,9 @@ const SECTIONS: Section[] = [
             partie.
           </li>
           <li>
-            <strong>Évolution des trophées</strong> : chaque point est une mesure prise par le dashboard.
+            <strong>Évolution des trophées</strong> : les mesures du dashboard, complétées par les combats enregistrés. Avant
+            la toute première mesure, la courbe est reconstituée à partir des combats connus, et le sous-titre du graphique le
+            signale (voir <PageLink to="calcul-historique-trophees">calcul</PageLink>).
           </li>
           <li>
             <strong>Variation par jour</strong> : clôture du jour moins clôture précédente, en heure locale.
@@ -632,10 +634,51 @@ const SECTIONS: Section[] = [
           période, ou à la première mesure si le suivi a commencé pendant la période.
         </li>
         <li>
-          Tant qu’il y a moins d’une heure d’historique, les variations affichent « — » plutôt qu’un « 0 » trompeur.
+          Tant qu’il y a moins d’une heure d’historique, les variations affichent « — » plutôt qu’un « 0 » trompeur. Pour les
+          trophées, des combats reconstitués suffisent (voir <PageLink to="calcul-historique-trophees">historique des trophées</PageLink>).
         </li>
         <li>Les variations par jour utilisent le jour local de la machine qui fait tourner le dashboard.</li>
       </List>
+    ),
+  },
+  {
+    id: 'calcul-historique-trophees',
+    title: 'Historique des trophées',
+    group: 'Calculs',
+    keywords: 'historique trophées courbe reconstituée combats premier lancement trou',
+    body: (
+      <>
+        <P>
+          L’API ne donne que le total de trophées actuel : aucun historique. La courbe est donc construite par le dashboard, en
+          combinant deux sources.
+        </P>
+        <List>
+          <li>
+            <strong>Les mesures du profil</strong>, prises à chaque collecte. Ce sont les seules valeurs exactes.
+          </li>
+          <li>
+            <strong>Les combats enregistrés</strong>, qui donnent la variation de chaque partie de trophées. En partant d’une
+            mesure et en retirant une à une les variations des combats qui la précèdent, on retrouve le total après chacun
+            d’eux : total après un combat = mesure suivante − variations des combats intervenus entre les deux.
+          </li>
+        </List>
+        <H3>Avant le premier lancement</H3>
+        <P>
+          Au premier lancement, l’API fournit les 25 derniers combats. La courbe remonte donc jusqu’au plus ancien de ces
+          combats, pas au-delà : une partie de trophées reconstituée ne remonte pas à la création du compte. Le sous-titre du
+          graphique indique la date de la première vraie mesure.
+        </P>
+        <H3>Quand le dashboard était éteint</H3>
+        <P>
+          Entre deux mesures espacées, les combats encore présents dans le journal complètent les étapes intermédiaires. Au-delà
+          de 25 parties jouées sans collecte, les plus anciennes manquent et la courbe fait un saut, mais les mesures restent
+          exactes.
+        </P>
+        <P>
+          Les variations (sur la période, par jour, sur l’Accueil et dans Comparer) utilisent la même courbe : un « +12 »
+          reconstitué à partir de vrais combats s’affiche aussitôt, sans attendre une heure d’historique.
+        </P>
+      </>
     ),
   },
   {
@@ -868,7 +911,10 @@ const SECTIONS: Section[] = [
     keywords: 'limites api historique bans meta',
     body: (
       <List>
-        <li>Pas d’historique avant le premier lancement, et 25 combats maximum entre deux collectes.</li>
+        <li>
+          Pas d’historique avant le premier lancement, hormis la courbe des trophées reconstituée sur les 25 derniers combats ;
+          25 combats maximum entre deux collectes.
+        </li>
         <li>Les points par set ne sont mesurables que pour les sets joués pendant que le dashboard tourne.</li>
         <li>Les seuils de rang sont estimés (500 points par rang) ; les tout premiers rangs ne sont pas couverts.</li>
         <li>L’API ne donne ni les bans du Ranked, ni les statistiques mondiales (méta) : tout est calculé sur tes parties.</li>
@@ -929,6 +975,14 @@ const SECTIONS: Section[] = [
     keywords: 'versions changelog nouveautés',
     body: (
       <>
+        <H3>1.1.2</H3>
+        <List>
+          <li>
+            Trophées : la courbe, les variations et la variation par jour intègrent les combats enregistrés, y compris avant la
+            première mesure du dashboard (courbe reconstituée).
+          </li>
+          <li>Graphiques : graduations lisibles quand les valeurs sont proches (plus de « 101,4 k » répété).</li>
+        </List>
         <H3>1.1.1</H3>
         <List>
           <li>Documentation : le sommaire met en évidence la section en cours de lecture pendant le défilement.</li>

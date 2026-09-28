@@ -1,9 +1,63 @@
 import type { DailyDelta, SeriesPoint } from '../../shared/types';
 import { localDayKey } from './time';
 
-interface TrophySample {
+export interface TrophySample {
   taken_at: string;
   trophies: number;
+}
+
+/** Combat qui a fait varier les trophées. */
+export interface TrophyEvent {
+  t: string;
+  change: number;
+}
+
+/** Durée supposée d'une partie : le point « avant » le premier combat reconstitué est placé là. */
+const GAME_MS = 2 * 60_000;
+
+/**
+ * Complète les relevés du dashboard avec les combats enregistrés. La valeur après
+ * chaque combat est déduite en remontant depuis le relevé qui le suit (relevé −
+ * variations des combats intermédiaires). Avant le tout premier relevé, cela
+ * reconstitue la courbe sur les combats connus (jusqu'à 25 au premier lancement) ;
+ * entre deux relevés espacés (app éteinte), cela restitue les étapes intermédiaires.
+ *
+ * `reconstructedUntil` vaut la date du premier relevé quand des points ont été
+ * reconstitués avant lui.
+ */
+export function withBattleSamples(
+  samples: readonly TrophySample[],
+  events: readonly TrophyEvent[],
+): { samples: TrophySample[]; reconstructedUntil: string | null } {
+  if (!samples.length || !events.length) return { samples: [...samples], reconstructedUntil: null };
+  const groups = new Map<number, TrophyEvent[]>();
+  let next = 0;
+  for (const event of [...events].sort((a, b) => a.t.localeCompare(b.t))) {
+    while (next < samples.length && samples[next].taken_at < event.t) next++;
+    // Combats postérieurs au dernier relevé : leur effet n'est pas encore mesuré.
+    if (next === samples.length) break;
+    // Un combat pile sur un relevé n'apporte rien de plus que ce relevé.
+    if (samples[next].taken_at === event.t) continue;
+    const group = groups.get(next) ?? [];
+    group.push(event);
+    groups.set(next, group);
+  }
+
+  const added: TrophySample[] = [];
+  for (const [index, group] of groups) {
+    let value = samples[index].trophies;
+    for (let i = group.length - 1; i >= 0; i--) {
+      added.push({ taken_at: group[i].t, trophies: value });
+      value -= group[i].change;
+    }
+    if (index === 0) {
+      added.push({ taken_at: new Date(Date.parse(group[0].t) - GAME_MS).toISOString(), trophies: value });
+    }
+  }
+  return {
+    samples: [...samples, ...added].sort((a, b) => a.taken_at.localeCompare(b.taken_at)),
+    reconstructedUntil: groups.has(0) ? samples[0].taken_at : null,
+  };
 }
 
 /**

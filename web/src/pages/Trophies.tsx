@@ -130,7 +130,11 @@ export function TrophiesPage() {
         <ChartCard
           className="mt-4"
           title="Évolution des trophées"
-          subtitle="Chaque point est une mesure prise par le dashboard."
+          subtitle={
+            data.reconstructedUntil
+              ? `Mesures du dashboard depuis le ${fmtDateTime(data.reconstructedUntil)} ; avant, courbe reconstituée à partir des combats enregistrés.`
+              : 'Mesures prises par le dashboard, complétées par les combats enregistrés.'
+          }
           table={{
             columns: ['Date', 'Trophées'],
             rows: [...data.series].reverse().map((p) => [fmtDateTime(p.t), fmtInt(p.v)]),

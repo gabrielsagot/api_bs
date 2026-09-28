@@ -9,6 +9,7 @@ import { upgradePriorities } from '../server/stats/collection';
 import { duoStats } from '../server/stats/duo';
 import { attachEloChanges, defaultTierThreshold, nextTierInfo, tierThresholds } from '../server/stats/elo';
 import { groupRankedSets } from '../server/stats/ranked';
+import { withBattleSamples } from '../server/stats/trophies';
 import { apiTime, stored, teamBattle } from './fixtures';
 
 const base = '2026-09-01T18:00:00Z';
@@ -132,6 +133,43 @@ describe('priorités d’amélioration', () => {
     expect(rows.map((r) => r.brawlerId)).toEqual([2, 1]);
     expect(rows[0]).toMatchObject({ step: 'Gadget · Truc', stepCoins: 1000 });
     expect(rows[1].step).toContain('Niveau 9 → 10');
+  });
+});
+
+describe('historique des trophées reconstitué', () => {
+  it('remonte les combats antérieurs au premier relevé', () => {
+    const { samples, reconstructedUntil } = withBattleSamples(
+      [{ taken_at: at(30), trophies: 1000 }],
+      [
+        { t: at(0), change: 8 },
+        { t: at(5), change: -4 },
+        { t: at(10), change: 6 },
+      ],
+    );
+    expect(reconstructedUntil).toBe(at(30));
+    expect(samples.map((s) => s.trophies)).toEqual([990, 998, 994, 1000, 1000]);
+    expect(samples[0].taken_at).toBe(at(-2));
+  });
+
+  it('comble un trou entre deux relevés sans toucher aux relevés', () => {
+    const { samples, reconstructedUntil } = withBattleSamples(
+      [
+        { taken_at: at(0), trophies: 500 },
+        { taken_at: at(600), trophies: 510 },
+      ],
+      [
+        { t: at(100), change: 7 },
+        { t: at(200), change: 3 },
+        { t: at(700), change: 9 }, // pas encore mesuré : ignoré
+      ],
+    );
+    expect(reconstructedUntil).toBeNull();
+    expect(samples.map((s) => [s.taken_at, s.trophies])).toEqual([
+      [at(0), 500],
+      [at(100), 507],
+      [at(200), 510],
+      [at(600), 510],
+    ]);
   });
 });
 

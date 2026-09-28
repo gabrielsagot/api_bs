@@ -61,7 +61,7 @@ import { duoStats } from './stats/duo';
 import { attachEloChanges, nextTierInfo, tierThresholds, type EloSample } from './stats/elo';
 import { recommendForSlot, type OwnedBrawler } from './stats/recommend';
 import { DAY_MS, isoAgo, periodRange } from './stats/time';
-import { dailyDeltas, trophySeries } from './stats/trophies';
+import { dailyDeltas, trophySeries, withBattleSamples, type TrophySample } from './stats/trophies';
 
 // Assemblage des réponses de chaque page à partir de la base.
 
@@ -148,10 +148,34 @@ function rankedProfileView(
 }
 
 /** Variation des trophées depuis `since` (ou depuis le début du suivi s'il est plus récent). */
-function trophyDeltaSince(db: Db, tag: string, since: string, current: number | null): number | null {
+/**
+ * Trophées depuis `since` : relevés du dashboard complétés par les combats (voir
+ * withBattleSamples), relevé de départ, et référence pour calculer une variation.
+ */
+function trophyHistory(db: Db, tag: string, since: string | null, now = Date.now()) {
+  const baseline = since ? snapshotAt(db, tag, since) : undefined;
+  const snapshots = loadSnapshots(db, tag, since);
+  const events = loadBattles(db, tag, since)
+    .filter((b) => b.trophyChange !== null)
+    .map((b) => ({ t: b.battleTime, change: b.trophyChange as number }));
+  const merged = withBattleSamples(baseline ? [baseline, ...snapshots] : snapshots, events);
+  const samples = baseline ? merged.samples.filter((s) => s.taken_at >= since!) : merged.samples;
+  const reconstructedUntil = baseline ? null : merged.reconstructedUntil;
+  // Des combats reconstitués sont de vraies mesures : pas besoin d'attendre une heure d'historique.
+  const reference: TrophySample | undefined =
+    baseline ?? (reconstructedUntil ? samples[0] : usableReference(snapshots[0] ?? firstSnapshot(db, tag), now));
+  return { samples, baseline, reference, reconstructedUntil };
+}
+
+function trophySeriesSince(db: Db, tag: string, since: string, now: number, maxPoints: number) {
+  const { samples, baseline } = trophyHistory(db, tag, since, now);
+  return trophySeries(samples, baseline, since, new Date(now).toISOString(), maxPoints);
+}
+
+function trophyDeltaSince(db: Db, tag: string, since: string, current: number | null, now = Date.now()): number | null {
   if (current === null) return null;
-  const baseline = usableReference(snapshotAt(db, tag, since) ?? firstSnapshot(db, tag));
-  return baseline ? current - baseline.trophies : null;
+  const { reference } = trophyHistory(db, tag, since, now);
+  return reference ? current - reference.trophies : null;
 }
 
 // ── Accueil ───────────────────────────────────────────────────
@@ -183,15 +207,9 @@ export function overviewView({ db, catalog }: ViewDeps, row: PlayerRow, now = Da
     trophies: {
       current,
       highest: profile?.highestTrophies ?? null,
-      delta24h: trophyDeltaSince(db, row.tag, isoAgo(DAY_MS, now), current),
-      delta7d: trophyDeltaSince(db, row.tag, since7d, current),
-      series: trophySeries(
-        loadSnapshots(db, row.tag, since7d),
-        snapshotAt(db, row.tag, since7d),
-        since7d,
-        new Date(now).toISOString(),
-        120,
-      ),
+      delta24h: trophyDeltaSince(db, row.tag, isoAgo(DAY_MS, now), current, now),
+      delta7d: trophyDeltaSince(db, row.tag, since7d, current, now),
+      series: trophySeriesSince(db, row.tag, since7d, now, 120),
     },
     lastSession: buildSessions(recentBattles)[0] ?? null,
     goals: listGoals(db, row.tag, now)
@@ -253,10 +271,8 @@ export function rankedView(
 export function trophiesView({ db }: ViewDeps, row: PlayerRow, period: Period, now = Date.now()): TrophiesResponse {
   const profile = playerProfile(row);
   const { since } = periodRange(period, now);
-  const snapshots = loadSnapshots(db, row.tag, since);
-  const baseline = since ? snapshotAt(db, row.tag, since) : undefined;
-  const current = profile?.trophies ?? snapshots.at(-1)?.trophies ?? null;
-  const reference = usableReference(baseline ?? snapshots[0], now);
+  const { samples, baseline, reference, reconstructedUntil } = trophyHistory(db, row.tag, since, now);
+  const current = profile?.trophies ?? samples.at(-1)?.trophies ?? null;
 
   const trophyBattles = loadBattles(db, row.tag, since).filter((b) => battleCategory(b.type) === 'trophies');
   const games = winLoss(trophyBattles);
@@ -271,8 +287,9 @@ export function trophiesView({ db }: ViewDeps, row: PlayerRow, period: Period, n
     current,
     highest: profile?.highestTrophies ?? null,
     delta: current !== null && reference ? current - reference.trophies : null,
-    series: trophySeries(snapshots, baseline, since, new Date(now).toISOString()),
-    daily: dailyDeltas(snapshots, baseline),
+    series: trophySeries(samples, baseline, since, new Date(now).toISOString()),
+    reconstructedUntil,
+    daily: dailyDeltas(samples, baseline),
     trophyGames: { ...games, trophyNet, avgPerGame: trophyBattles.length ? trophyNet / trophyBattles.length : null },
     brawlers: (profile?.brawlers ?? [])
       .map((brawler) => {
@@ -506,18 +523,12 @@ export function compareView({ db }: ViewDeps, rows: PlayerRow[], now = Date.now(
       soloVictories: profile?.soloVictories ?? null,
       duoVictories: profile?.duoVictories ?? null,
       trophies,
-      trophyDelta7d: trophyDeltaSince(db, row.tag, since7d, trophies),
+      trophyDelta7d: trophyDeltaSince(db, row.tag, since7d, trophies, now),
       games7d: winLoss(loadBattles(db, row.tag, since7d)),
       rankedTier: profile?.rankedRank ?? tierTimeline(ranked).at(-1)?.tier ?? null,
       rankedElo: profile?.rankedElo ?? null,
       rankedWinRate30d: winLoss(ranked.filter((b) => b.battleTime >= since30d)).winRate,
-      series: trophySeries(
-        loadSnapshots(db, row.tag, since30d),
-        snapshotAt(db, row.tag, since30d),
-        since30d,
-        new Date(now).toISOString(),
-        200,
-      ),
+      series: trophySeriesSince(db, row.tag, since30d, now, 200),
     };
   });
 

@@ -52,17 +52,20 @@ function formatTimeTick(time: number, span: number): string {
   return date.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' });
 }
 
-/** Graduations « rondes » (0 / 50 / 100…). */
+/** Graduations « rondes » (0 / 50 / 100…) pour des valeurs entières (trophées, points). */
 export function niceTicks(min: number, max: number, count = 4): number[] {
   if (!Number.isFinite(min) || !Number.isFinite(max)) return [0, 1];
   if (min === max) {
-    min -= 1;
-    max += 1;
+    // Courbe plate : une marge à l'échelle de la valeur (±10 autour de 101 447, ±1 autour de 5).
+    const pad = Math.max(1, 10 ** (Math.floor(Math.log10(Math.abs(min) || 1)) - 4) * 10);
+    min -= pad;
+    max += pad;
   }
   const rough = (max - min) / count;
   const power = 10 ** Math.floor(Math.log10(rough));
   const n = rough / power;
-  const step = (n <= 1 ? 1 : n <= 2 ? 2 : n <= 2.5 ? 2.5 : n <= 5 ? 5 : 10) * power;
+  // Jamais de demi-unité : les valeurs affichées sont entières.
+  const step = Math.max(1, (n <= 1 ? 1 : n <= 2 ? 2 : n <= 2.5 ? 2.5 : n <= 5 ? 5 : 10) * power);
   const low = Math.floor(min / step) * step;
   const high = Math.ceil(max / step) * step;
   const ticks: number[] = [];
@@ -71,6 +74,18 @@ export function niceTicks(min: number, max: number, count = 4): number[] {
 }
 
 const axisTick = { fill: CHART.tick, fontSize: 11 };
+
+/**
+ * Format des graduations verticales : compact (« 101,4 k ») tant que chaque graduation
+ * garde un libellé distinct, sinon valeur entière (« 101 440 », « 101 450 »…),
+ * avec une largeur d'axe adaptée au libellé le plus long.
+ */
+function valueAxis(ticks: readonly number[], format: (v: number) => string = fmtCompact) {
+  const compact = ticks.map(format);
+  const tickFormatter = new Set(compact).size === ticks.length ? format : (v: number) => fmtInt(v);
+  const longest = Math.max(...ticks.map((v) => tickFormatter(v).length));
+  return { tickFormatter, width: Math.max(40, longest * 7 + 10) };
+}
 
 // ── Infobulle ─────────────────────────────────────────────────
 
@@ -247,11 +262,10 @@ export function TimeSeriesChart({
           <YAxis
             domain={[yTicks[0], yTicks[yTicks.length - 1]]}
             ticks={yTicks}
-            tickFormatter={(v: number) => fmtCompact(v)}
+            {...valueAxis(yTicks)}
             tick={axisTick}
             axisLine={false}
             tickLine={false}
-            width={52}
           />
           <Tooltip
             isAnimationActive={false}
@@ -519,11 +533,10 @@ export function MultiSeriesChart({
             <YAxis
               domain={[yTicks[0], yTicks[yTicks.length - 1]]}
               ticks={yTicks}
-              tickFormatter={format}
+              {...valueAxis(yTicks, format)}
               tick={axisTick}
               axisLine={false}
               tickLine={false}
-              width={56}
             />
             <Tooltip
               isAnimationActive={false}
