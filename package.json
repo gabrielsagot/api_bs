@@ -1,6 +1,6 @@
 {
   "name": "brawl-dashboard",
-  "version": "1.1.0",
+  "version": "1.1.1",
   "private": true,
   "description": "Dashboard local de suivi de compte Brawl Stars (API officielle)",
   "type": "module",

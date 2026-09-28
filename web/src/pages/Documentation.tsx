@@ -1,6 +1,6 @@
 import clsx from 'clsx';
 import { Search } from 'lucide-react';
-import { useEffect, useMemo, useState, type ReactNode } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { Link, useLocation } from 'react-router';
 import { Card, PageHeader } from '../components/ui';
 import { useStatus } from '../lib/api';
@@ -8,7 +8,7 @@ import { useStatus } from '../lib/api';
 // Documentation intégrée. À TENIR À JOUR : toute fonctionnalité ajoutée, modifiée
 // ou retirée dans l'app doit être reflétée ici (voir CLAUDE.md).
 
-const DOC_VERSION = '1.1.0';
+const DOC_VERSION = '1.1.1';
 
 interface Section {
   id: string;
@@ -184,6 +184,10 @@ const SECTIONS: Section[] = [
           Sur ordinateur, toutes les pages sont dans la barre latérale. Sur téléphone, la barre du bas donne Accueil, En direct,
           Ranked et Brawlers ; les autres pages sont dans « Plus ». Le sélecteur en haut change de joueur suivi. Chaque page
           a un lien « Aide » qui mène à sa section ici.
+        </P>
+        <P>
+          Sur cette page, le sommaire à gauche (sur ordinateur) suit ta lecture : la section affichée à l’écran y est mise en
+          évidence au fil du défilement. La recherche filtre les sections par titre et par mots-clés.
         </P>
         <P>
           Les filtres (période, file, type…) sont gardés dans l’adresse de la page : tu peux la mettre en favori ou la
@@ -925,6 +929,10 @@ const SECTIONS: Section[] = [
     keywords: 'versions changelog nouveautés',
     body: (
       <>
+        <H3>1.1.1</H3>
+        <List>
+          <li>Documentation : le sommaire met en évidence la section en cours de lecture pendant le défilement.</li>
+        </List>
         <H3>1.1.0</H3>
         <List>
           <li>Points Ranked (ELO) et records de saison / absolu ; courbe des points.</li>
@@ -948,6 +956,67 @@ const SECTIONS: Section[] = [
 
 const GROUPS = ['Démarrer', 'Pages', 'Calculs', 'Fonctionnement', 'Référence'];
 
+/** Hauteur, depuis le haut de la fenêtre, à partir de laquelle une section devient la section active. */
+const SPY_OFFSET = 120;
+
+/**
+ * Section en cours de lecture : la dernière dont le titre est passé sous SPY_OFFSET,
+ * ou la dernière de la page quand on est tout en bas. Une section choisie dans le
+ * sommaire reste active tant qu'on ne fait pas défiler la page soi-même (utile pour
+ * les dernières sections, qui ne peuvent pas remonter jusqu'en haut de l'écran).
+ */
+function useActiveSection(ids: string[]) {
+  const [active, setActive] = useState<string | null>(null);
+  const pinned = useRef<{ id: string; top: number | null } | null>(null);
+  const key = ids.join(',');
+
+  const pin = useCallback((id: string) => {
+    pinned.current = { id, top: null };
+    setActive(id);
+  }, []);
+
+  useEffect(() => {
+    const list = key ? key.split(',') : [];
+    let frame = 0;
+    const update = () => {
+      frame = 0;
+      const p = pinned.current;
+      if (p) {
+        const top = document.getElementById(p.id)?.getBoundingClientRect().top;
+        if (top !== undefined && (p.top === null || Math.abs(top - p.top) < 40)) {
+          p.top ??= top;
+          return;
+        }
+        pinned.current = null;
+      }
+      const atBottom = window.innerHeight + window.scrollY >= document.documentElement.scrollHeight - 4;
+      let current: string | null = list[0] ?? null;
+      if (atBottom) current = list.at(-1) ?? null;
+      else {
+        for (const id of list) {
+          const el = document.getElementById(id);
+          if (el && el.getBoundingClientRect().top <= SPY_OFFSET) current = id;
+          else if (el) break;
+        }
+      }
+      setActive(current);
+    };
+    const onScroll = () => {
+      if (!frame) frame = requestAnimationFrame(update);
+    };
+    update();
+    window.addEventListener('scroll', onScroll, { passive: true });
+    window.addEventListener('resize', onScroll);
+    return () => {
+      window.removeEventListener('scroll', onScroll);
+      window.removeEventListener('resize', onScroll);
+      if (frame) cancelAnimationFrame(frame);
+    };
+  }, [key]);
+
+  return { active, pin };
+}
+
 export function DocumentationPage() {
   const location = useLocation();
   const status = useStatus().data;
@@ -958,11 +1027,27 @@ export function DocumentationPage() {
     return q ? SECTIONS.filter((s) => `${s.title} ${s.keywords}`.toLowerCase().includes(q)) : SECTIONS;
   }, [query]);
 
+  const { active, pin } = useActiveSection(visible.map((s) => s.id));
+  const navRef = useRef<HTMLDivElement>(null);
+
   useEffect(() => {
     const id = location.hash.slice(1);
     if (!id) return;
+    pin(id);
     requestAnimationFrame(() => document.getElementById(id)?.scrollIntoView({ block: 'start' }));
-  }, [location.hash]);
+  }, [location.hash, pin]);
+
+  // Garde l'entrée active visible dans le sommaire, sans faire défiler la page.
+  useEffect(() => {
+    const nav = navRef.current;
+    const link = nav?.querySelector<HTMLElement>(`[data-section="${active}"]`);
+    if (!nav || !link) return;
+    const top = link.getBoundingClientRect().top - nav.getBoundingClientRect().top + nav.scrollTop;
+    if (top < nav.scrollTop + 60) nav.scrollTop = Math.max(0, top - 60);
+    else if (top + link.offsetHeight > nav.scrollTop + nav.clientHeight - 24) {
+      nav.scrollTop = top + link.offsetHeight - nav.clientHeight + 24;
+    }
+  }, [active]);
 
   return (
     <>
@@ -972,7 +1057,7 @@ export function DocumentationPage() {
         action={<span className="text-[12px] text-ink-3">Version {status?.version ?? DOC_VERSION}</span>}
       />
       <div className="grid gap-6 lg:grid-cols-[220px_minmax(0,1fr)]">
-        <nav aria-label="Sommaire" className="lg:sticky lg:top-8 lg:max-h-[calc(100dvh-4rem)] lg:self-start lg:overflow-y-auto">
+        <nav ref={navRef} aria-label="Sommaire" className="lg:sticky lg:top-8 lg:max-h-[calc(100dvh-4rem)] lg:self-start lg:overflow-y-auto">
           <label className="relative mb-4 flex items-center">
             <Search className="pointer-events-none absolute left-2.5 size-3.5 text-ink-3" />
             <span className="sr-only">Rechercher dans la documentation</span>
@@ -995,9 +1080,12 @@ export function DocumentationPage() {
                     <a
                       key={s.id}
                       href={`#${s.id}`}
+                      data-section={s.id}
+                      aria-current={active === s.id ? 'location' : undefined}
+                      onClick={() => pin(s.id)}
                       className={clsx(
                         'block rounded-lg px-2 py-1 text-[13px] hover:bg-black/[0.04]',
-                        location.hash === `#${s.id}` ? 'font-medium text-accent' : 'text-ink-2',
+                        active === s.id ? 'font-medium text-accent' : 'text-ink-2',
                       )}
                     >
                       {s.title}
