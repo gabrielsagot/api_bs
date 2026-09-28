@@ -17,7 +17,7 @@ import {
 import { tierName, tierShortName } from '../../../shared/labels';
 import type { DailyDelta, SeriesPoint, TierPoint } from '../../../shared/types';
 import { CHART } from '../lib/colors';
-import { playTimeline, trimIdleTail, type PlayTimeline } from '../lib/playtime';
+import { playPoints, playTimeline, type PlayTimeline } from '../lib/playtime';
 import { fmtCompact, fmtDayKey, fmtInt, fmtSigned } from '../lib/format';
 import { Card, CardHeader } from './ui';
 
@@ -232,7 +232,7 @@ export function TimeSeriesChart({
   emptyText?: string;
 }) {
   const { data, timeline } = useMemo(() => {
-    const raw = trimIdleTail(points.map((p) => ({ t: Date.parse(p.t), v: p.v })));
+    const raw = playPoints(points.map((p) => ({ t: Date.parse(p.t), v: p.v })));
     const timeline = playTimeline(raw.map((p) => p.t));
     return { timeline, data: raw.map((p) => ({ ...p, x: timeline.toX(p.t) })) };
   }, [points]);
@@ -287,7 +287,7 @@ export function TimeSeriesChart({
 
 export function TierChart({ points, height = 240 }: { points: TierPoint[]; height?: number }) {
   const { data, timeline } = useMemo(() => {
-    const raw = trimIdleTail(points.map((p) => ({ t: Date.parse(p.t), v: p.tier })));
+    const raw = playPoints(points.map((p) => ({ t: Date.parse(p.t), v: p.tier })));
     const timeline = playTimeline(raw.map((p) => p.t));
     return { timeline, data: raw.map((p) => ({ ...p, x: timeline.toX(p.t) })) };
   }, [points]);
@@ -451,7 +451,9 @@ export interface NamedSeries {
  * (dernière valeur connue de chaque joueur).
  */
 function mergeSeries(series: NamedSeries[], steps: number, relative: boolean) {
-  const timeline = playTimeline(series.flatMap((s) => s.points.map((p) => Date.parse(p.t))));
+  const timeline = playTimeline(
+    series.flatMap((s) => playPoints(s.points.map((p) => ({ t: Date.parse(p.t), v: p.v }))).map((p) => p.t)),
+  );
   const rows: Record<string, number | null>[] = [];
   if (!series.some((s) => s.points.length)) return { timeline, rows };
   const cursors = series.map(() => 0);
@@ -549,7 +551,7 @@ export function MultiSeriesChart({
 
 export function Sparkline({ points, height = 40, color = CHART.accent }: { points: SeriesPoint[]; height?: number; color?: string }) {
   if (points.length < 2) return <div style={{ height }} />;
-  const raw = trimIdleTail(points.map((p) => ({ t: Date.parse(p.t), v: p.v })));
+  const raw = playPoints(points.map((p) => ({ t: Date.parse(p.t), v: p.v })));
   const timeline = playTimeline(raw.map((p) => p.t));
   const xs = raw.map((p) => timeline.toX(p.t));
   const ys = raw.map((p) => p.v);

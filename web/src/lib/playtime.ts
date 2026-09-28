@@ -1,8 +1,9 @@
 // Axe du temps « de jeu » : les trophées et les points ne bougent que quand on joue.
-// Chaque pause (plus de PAUSE_MS sans mesure) est ramenée à un court intervalle
-// fixe, pour que la nuit ou les jours sans partie n'écrasent pas la courbe.
+// Chaque pause (plus de PAUSE_MS sans changement de la valeur tracée) est ramenée à
+// un court intervalle, pour que la nuit, les jours sans partie ou le temps passé dans
+// un autre mode (Ranked pour la courbe des trophées, par exemple) n'écrasent pas la courbe.
 
-export const PAUSE_MS = 30 * 60_000;
+export const PAUSE_MS = 15 * 60_000;
 /** Largeur maximale (en temps de jeu) d'une pause compressée. */
 const PAUSE_WIDTH_MS = 4 * 60_000;
 /** Part maximale de l'axe occupée par l'ensemble des pauses. */
@@ -114,12 +115,30 @@ export function playTimeline(times: readonly number[], maxTicks = 6): PlayTimeli
 }
 
 /**
- * Retire le point final ajouté pour prolonger la courbe jusqu'à maintenant quand il
- * arrive après une pause : il ne correspond à aucune partie et créerait une pause vide.
+ * Retire le point final ajouté pour prolonger la courbe jusqu'à maintenant quand la
+ * valeur n'a pas bougé depuis : il ne correspond à aucune partie (la valeur actuelle
+ * reste affichée dans les chiffres clés). On garde toujours au moins deux points.
  */
 export function trimIdleTail<T extends { t: number; v: number }>(points: T[]): T[] {
   const last = points.at(-1);
   const previous = points.at(-2);
-  if (last && previous && last.v === previous.v && last.t - previous.t > PAUSE_MS) return points.slice(0, -1);
+  if (points.length > 2 && last && previous && last.v === previous.v) return points.slice(0, -1);
   return points;
+}
+
+/**
+ * Ne garde que les mesures qui encadrent un changement de valeur : un palier plat
+ * (trophées inchangés pendant qu'on joue en Ranked, par exemple) se réduit à ses deux
+ * extrémités, et l'écart entre elles devient une pause s'il dépasse PAUSE_MS.
+ */
+export function keepChanges<T extends { t: number; v: number }>(points: T[]): T[] {
+  return points.filter(
+    (point, i) =>
+      i === 0 || i === points.length - 1 || point.v !== points[i - 1].v || point.v !== points[i + 1].v,
+  );
+}
+
+/** Points prêts pour l'axe en temps de jeu : paliers réduits, prolongation finale inutile retirée. */
+export function playPoints<T extends { t: number; v: number }>(points: T[]): T[] {
+  return trimIdleTail(keepChanges(points));
 }
