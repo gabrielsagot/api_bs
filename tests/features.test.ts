@@ -10,6 +10,7 @@ import { duoStats } from '../server/stats/duo';
 import { attachEloChanges, defaultTierThreshold, nextTierInfo, tierThresholds } from '../server/stats/elo';
 import { groupRankedSets } from '../server/stats/ranked';
 import { withBattleSamples } from '../server/stats/trophies';
+import { playTimeline } from '../web/src/lib/playtime';
 import { fameLabel } from '../shared/labels';
 import { NAME_STYLES, guessNameStyle } from '../shared/nameStyles';
 import { contrastRatio, modeIconId, nameStyleCss, tierIconId } from '../web/src/lib/bs';
@@ -228,5 +229,27 @@ describe('repères Brawl Stars', () => {
     expect(tierIconId(null)).toBeNull();
     expect(modeIconId('heist')).toBe(48000002);
     expect(modeIconId('inconnu')).toBeNull();
+  });
+});
+
+describe('axe du temps de jeu', () => {
+  const t = (minutes: number) => Date.parse(base) + minutes * 60_000;
+
+  it('compresse les pauses et garde les sessions à l’échelle', () => {
+    // Session de 20 min, nuit de 12 h, session de 10 min.
+    const timeline = playTimeline([t(0), t(10), t(20), t(740), t(750)]);
+    expect(timeline.pauses).toHaveLength(1);
+    expect(timeline.toX(t(10))).toBe(10 * 60_000);
+    expect(timeline.toX(t(740))).toBe(24 * 60_000); // 20 min de jeu + 4 min pour la nuit
+    expect(timeline.maxX).toBe(34 * 60_000);
+    expect(timeline.toTime(timeline.toX(t(745)))).toBe(t(745));
+    // La reprise après la nuit est graduée.
+    expect(timeline.ticks).toContain(timeline.toX(t(740)));
+  });
+
+  it('ne compresse rien sans pause', () => {
+    const timeline = playTimeline([t(0), t(15), t(29)]);
+    expect(timeline.pauses).toHaveLength(0);
+    expect(timeline.maxX).toBe(29 * 60_000);
   });
 });
