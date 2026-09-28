@@ -8,7 +8,7 @@ import { useStatus } from '../lib/api';
 // Documentation intégrée. À TENIR À JOUR : toute fonctionnalité ajoutée, modifiée
 // ou retirée dans l'app doit être reflétée ici (voir CLAUDE.md).
 
-const DOC_VERSION = '1.2.1';
+const DOC_VERSION = '1.2.2';
 
 interface Section {
   id: string;
@@ -185,6 +185,14 @@ const SECTIONS: Section[] = [
           Sur ordinateur, toutes les pages sont dans la barre latérale. Sur téléphone, la barre du bas donne Accueil, En direct,
           Ranked et Brawlers ; les autres pages sont dans « Plus ». Le sélecteur en haut change de joueur suivi. Chaque page
           a un lien « Aide » qui mène à sa section ici.
+        </P>
+        <H3>Lire les courbes</H3>
+        <P>
+          Les courbes dans le temps (trophées, points Ranked, rang, Comparer, mini-courbe de l’Accueil) utilisent un axe en{' '}
+          <strong>temps de jeu</strong> : les trophées et les points ne bougent que quand tu joues. Chaque pause de plus de
+          30 minutes sans mesure (la nuit, une journée sans jouer) est réduite à une fine bande grise ; la graduation
+          suivante indique l’heure (ou le jour) de reprise. L’info-bulle et la vue tableau donnent toujours l’heure réelle
+          de chaque mesure.
         </P>
         <H3>Repères visuels du jeu</H3>
         <List>
@@ -1011,6 +1019,13 @@ const SECTIONS: Section[] = [
     keywords: 'versions changelog nouveautés',
     body: (
       <>
+        <H3>1.2.2</H3>
+        <List>
+          <li>
+            Courbes en temps de jeu : les pauses (nuit, jours sans jouer) sont compressées en fines bandes grises, pour que
+            les sessions occupent toute la largeur.
+          </li>
+        </List>
         <H3>1.2.1</H3>
         <List>
           <li>Pseudo avec les vrais dégradés du jeu (12 styles), déduits de la couleur de l’API ou choisis dans les Réglages.</li>

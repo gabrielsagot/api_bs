@@ -7,6 +7,7 @@ import {
   CartesianGrid,
   Line,
   LineChart,
+  ReferenceArea,
   ReferenceLine,
   ResponsiveContainer,
   Tooltip,
@@ -16,41 +17,12 @@ import {
 import { tierName, tierShortName } from '../../../shared/labels';
 import type { DailyDelta, SeriesPoint, TierPoint } from '../../../shared/types';
 import { CHART } from '../lib/colors';
+import { playTimeline, trimIdleTail, type PlayTimeline } from '../lib/playtime';
 import { fmtCompact, fmtDayKey, fmtInt, fmtSigned } from '../lib/format';
 import { Card, CardHeader } from './ui';
 
 // Graphiques sobres : traits fins de 2 px, grille en filets, info-bulle avec
 // réticule, et une vue « tableau » pour chaque graphique.
-
-const HOUR = 3_600_000;
-const DAY = 24 * HOUR;
-const TIME_STEPS = [HOUR, 3 * HOUR, 6 * HOUR, 12 * HOUR, DAY, 2 * DAY, 7 * DAY, 14 * DAY, 30 * DAY, 91 * DAY];
-
-function addDays(time: number, days: number): number {
-  const date = new Date(time);
-  date.setDate(date.getDate() + days);
-  return date.getTime();
-}
-
-/** Graduations temporelles alignées (minuit local pour les pas en jours). */
-export function timeTicks(min: number, max: number, maxTicks = 6): number[] {
-  const span = Math.max(1, max - min);
-  const step = TIME_STEPS.find((candidate) => span / candidate <= maxTicks) ?? TIME_STEPS[TIME_STEPS.length - 1];
-  const start = new Date(min);
-  if (step >= DAY) start.setHours(0, 0, 0, 0);
-  else start.setHours(Math.floor(start.getHours() / (step / HOUR)) * (step / HOUR), 0, 0, 0);
-  const ticks: number[] = [];
-  for (let t = start.getTime(); t <= max; t = step >= DAY ? addDays(t, Math.round(step / DAY)) : t + step) {
-    if (t >= min) ticks.push(t);
-  }
-  return ticks;
-}
-
-function formatTimeTick(time: number, span: number): string {
-  const date = new Date(time);
-  if (span <= 2 * DAY) return date.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
-  return date.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' });
-}
 
 /** Graduations « rondes » (0 / 50 / 100…) pour des valeurs entières (trophées, points). */
 export function niceTicks(min: number, max: number, count = 4): number[] {
@@ -74,6 +46,28 @@ export function niceTicks(min: number, max: number, count = 4): number[] {
 }
 
 const axisTick = { fill: CHART.tick, fontSize: 11 };
+
+/** Axe horizontal en temps de jeu (pauses compressées, voir lib/playtime). */
+function playXAxisProps(timeline: PlayTimeline) {
+  return {
+    dataKey: 'x',
+    type: 'number' as const,
+    domain: [0, Math.max(1, timeline.maxX)],
+    ticks: timeline.ticks,
+    tickFormatter: (x: number) => timeline.label(x),
+    tick: axisTick,
+    axisLine: { stroke: CHART.axis },
+    tickLine: false,
+    interval: 0 as const,
+  };
+}
+
+/** Marque discrète (bande très claire) à l'emplacement des pauses, là où on ne jouait pas. */
+function pauseBands(timeline: PlayTimeline) {
+  return timeline.pauses.map((pause) => (
+    <ReferenceArea key={pause.x1} x1={pause.x1} x2={pause.x2} fill="#f3f3f6" fillOpacity={1} stroke="none" ifOverflow="hidden" />
+  ));
+}
 
 /**
  * Format des graduations verticales : compact (« 101,4 k ») tant que chaque graduation
@@ -237,10 +231,12 @@ export function TimeSeriesChart({
   color?: string;
   emptyText?: string;
 }) {
-  const data = useMemo(() => points.map((p) => ({ x: Date.parse(p.t), v: p.v })), [points]);
+  const { data, timeline } = useMemo(() => {
+    const raw = trimIdleTail(points.map((p) => ({ t: Date.parse(p.t), v: p.v })));
+    const timeline = playTimeline(raw.map((p) => p.t));
+    return { timeline, data: raw.map((p) => ({ ...p, x: timeline.toX(p.t) })) };
+  }, [points]);
   if (data.length < 2) return <EmptyChart height={height} text={emptyText} />;
-  const min = data[0].x;
-  const max = data[data.length - 1].x;
   const values = data.map((d) => d.v);
   const yTicks = niceTicks(Math.min(...values), Math.max(...values), 4);
   return (
@@ -248,17 +244,8 @@ export function TimeSeriesChart({
       <ResponsiveContainer width="100%" height="100%">
         <LineChart data={data} margin={{ top: 8, right: 8, bottom: 0, left: 0 }}>
           <CartesianGrid vertical={false} stroke={CHART.grid} />
-          <XAxis
-            dataKey="x"
-            type="number"
-            domain={[min, max]}
-            ticks={timeTicks(min, max)}
-            tickFormatter={(t: number) => formatTimeTick(t, max - min)}
-            tick={axisTick}
-            axisLine={{ stroke: CHART.axis }}
-            tickLine={false}
-            minTickGap={24}
-          />
+          {pauseBands(timeline)}
+          <XAxis {...playXAxisProps(timeline)} />
           <YAxis
             domain={[yTicks[0], yTicks[yTicks.length - 1]]}
             ticks={yTicks}
@@ -273,7 +260,7 @@ export function TimeSeriesChart({
             content={({ active, payload }: TooltipProps) =>
               active && payload?.length ? (
                 <TooltipBox
-                  title={formatTooltipDate(Number(payload[0].payload?.x))}
+                  title={formatTooltipDate(Number(payload[0].payload?.t))}
                   rows={[{ color, label, value: fmtInt(Number(payload[0].value)) }]}
                 />
               ) : null
@@ -299,7 +286,11 @@ export function TimeSeriesChart({
 // ── Rang Ranked (marches d'escalier) ──────────────────────────
 
 export function TierChart({ points, height = 240 }: { points: TierPoint[]; height?: number }) {
-  const data = useMemo(() => points.map((p) => ({ x: Date.parse(p.t), v: p.tier })), [points]);
+  const { data, timeline } = useMemo(() => {
+    const raw = trimIdleTail(points.map((p) => ({ t: Date.parse(p.t), v: p.tier })));
+    const timeline = playTimeline(raw.map((p) => p.t));
+    return { timeline, data: raw.map((p) => ({ ...p, x: timeline.toX(p.t) })) };
+  }, [points]);
   if (data.length < 2) {
     return (
       <EmptyChart
@@ -312,8 +303,6 @@ export function TierChart({ points, height = 240 }: { points: TierPoint[]; heigh
       />
     );
   }
-  const min = data[0].x;
-  const max = data[data.length - 1].x;
   const tiers = data.map((d) => d.v);
   const low = Math.max(1, Math.min(...tiers) - 1);
   const high = Math.max(...tiers) + 1;
@@ -327,17 +316,8 @@ export function TierChart({ points, height = 240 }: { points: TierPoint[]; heigh
       <ResponsiveContainer width="100%" height="100%">
         <LineChart data={data} margin={{ top: 8, right: 8, bottom: 0, left: 0 }}>
           <CartesianGrid vertical={false} stroke={CHART.grid} />
-          <XAxis
-            dataKey="x"
-            type="number"
-            domain={[min, max]}
-            ticks={timeTicks(min, max)}
-            tickFormatter={(t: number) => formatTimeTick(t, max - min)}
-            tick={axisTick}
-            axisLine={{ stroke: CHART.axis }}
-            tickLine={false}
-            minTickGap={24}
-          />
+          {pauseBands(timeline)}
+          <XAxis {...playXAxisProps(timeline)} />
           <YAxis
             domain={[low, high]}
             ticks={ticks}
@@ -354,7 +334,7 @@ export function TierChart({ points, height = 240 }: { points: TierPoint[]; heigh
             content={({ active, payload }: TooltipProps) =>
               active && payload?.length ? (
                 <TooltipBox
-                  title={formatTooltipDate(Number(payload[0].payload?.x))}
+                  title={formatTooltipDate(Number(payload[0].payload?.t))}
                   rows={[{ color: CHART.accent, label: 'Rang', value: tierName(Number(payload[0].value)) }]}
                 />
               ) : null
@@ -466,18 +446,20 @@ export interface NamedSeries {
   points: SeriesPoint[];
 }
 
-/** Rééchantillonne plusieurs séries sur une grille commune (dernière valeur connue). */
+/**
+ * Rééchantillonne plusieurs séries sur une grille commune en temps de jeu
+ * (dernière valeur connue de chaque joueur).
+ */
 function mergeSeries(series: NamedSeries[], steps: number, relative: boolean) {
-  const all = series.flatMap((s) => s.points.map((p) => Date.parse(p.t)));
-  if (!all.length) return [];
-  const min = Math.min(...all);
-  const max = Math.max(...all);
+  const timeline = playTimeline(series.flatMap((s) => s.points.map((p) => Date.parse(p.t))));
   const rows: Record<string, number | null>[] = [];
+  if (!series.some((s) => s.points.length)) return { timeline, rows };
   const cursors = series.map(() => 0);
   const bases = series.map((s) => (s.points.length ? s.points[0].v : 0));
   for (let i = 0; i <= steps; i++) {
-    const x = min + ((max - min) * i) / steps;
-    const row: Record<string, number | null> = { x };
+    const position = (timeline.maxX * i) / steps;
+    const x = timeline.toTime(position);
+    const row: Record<string, number | null> = { x: position, t: x };
     series.forEach((s, index) => {
       while (cursors[index] + 1 < s.points.length && Date.parse(s.points[cursors[index] + 1].t) <= x) cursors[index]++;
       const point = s.points[cursors[index]];
@@ -486,7 +468,7 @@ function mergeSeries(series: NamedSeries[], steps: number, relative: boolean) {
     });
     rows.push(row);
   }
-  return rows;
+  return { timeline, rows };
 }
 
 export function MultiSeriesChart({
@@ -498,10 +480,8 @@ export function MultiSeriesChart({
   height?: number;
   relative?: boolean;
 }) {
-  const data = useMemo(() => mergeSeries(series, 120, relative), [series, relative]);
+  const { timeline, rows: data } = useMemo(() => mergeSeries(series, 160, relative), [series, relative]);
   if (data.length < 2) return <EmptyChart height={height} />;
-  const min = data[0].x as number;
-  const max = data[data.length - 1].x as number;
   const values = data.flatMap((row) => series.map((s) => row[s.key])).filter((v): v is number => v !== null);
   const yTicks = niceTicks(Math.min(...values), Math.max(...values), 4);
   const format = (v: number) => (relative ? fmtSigned(v) : fmtCompact(v));
@@ -519,17 +499,8 @@ export function MultiSeriesChart({
         <ResponsiveContainer width="100%" height="100%">
           <LineChart data={data} margin={{ top: 8, right: 8, bottom: 0, left: 0 }}>
             <CartesianGrid vertical={false} stroke={CHART.grid} />
-            <XAxis
-              dataKey="x"
-              type="number"
-              domain={[min, max]}
-              ticks={timeTicks(min, max)}
-              tickFormatter={(t: number) => formatTimeTick(t, max - min)}
-              tick={axisTick}
-              axisLine={{ stroke: CHART.axis }}
-              tickLine={false}
-              minTickGap={24}
-            />
+            {pauseBands(timeline)}
+            <XAxis {...playXAxisProps(timeline)} />
             <YAxis
               domain={[yTicks[0], yTicks[yTicks.length - 1]]}
               ticks={yTicks}
@@ -544,7 +515,7 @@ export function MultiSeriesChart({
               content={({ active, payload }: TooltipProps) =>
                 active && payload?.length ? (
                   <TooltipBox
-                    title={formatTooltipDate(Number(payload[0].payload?.x))}
+                    title={formatTooltipDate(Number(payload[0].payload?.t))}
                     rows={series.map((s) => {
                       const value = payload[0].payload?.[s.key];
                       return { color: s.color, label: s.label, value: typeof value === 'number' ? format(value) : '—' };
@@ -578,14 +549,16 @@ export function MultiSeriesChart({
 
 export function Sparkline({ points, height = 40, color = CHART.accent }: { points: SeriesPoint[]; height?: number; color?: string }) {
   if (points.length < 2) return <div style={{ height }} />;
-  const xs = points.map((p) => Date.parse(p.t));
-  const ys = points.map((p) => p.v);
+  const raw = trimIdleTail(points.map((p) => ({ t: Date.parse(p.t), v: p.v })));
+  const timeline = playTimeline(raw.map((p) => p.t));
+  const xs = raw.map((p) => timeline.toX(p.t));
+  const ys = raw.map((p) => p.v);
   const [x0, x1] = [Math.min(...xs), Math.max(...xs)];
   const [y0, y1] = [Math.min(...ys), Math.max(...ys)];
   const width = 100;
   const scaleX = (x: number) => ((x - x0) / Math.max(1, x1 - x0)) * width;
   const scaleY = (y: number) => (y1 === y0 ? height / 2 : height - 3 - ((y - y0) / (y1 - y0)) * (height - 6));
-  const d = points.map((p, i) => `${i ? 'L' : 'M'}${scaleX(xs[i]).toFixed(2)},${scaleY(p.v).toFixed(2)}`).join('');
+  const d = raw.map((p, i) => `${i ? 'L' : 'M'}${scaleX(xs[i]).toFixed(2)},${scaleY(p.v).toFixed(2)}`).join('');
   return (
     <svg viewBox={`0 0 ${width} ${height}`} preserveAspectRatio="none" style={{ height }} className="w-full" aria-hidden>
       <path d={d} fill="none" stroke={color} strokeWidth={2} vectorEffect="non-scaling-stroke" strokeLinejoin="round" />
