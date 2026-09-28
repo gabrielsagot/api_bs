@@ -8,7 +8,7 @@ import { useStatus } from '../lib/api';
 // Documentation intégrée. À TENIR À JOUR : toute fonctionnalité ajoutée, modifiée
 // ou retirée dans l'app doit être reflétée ici (voir CLAUDE.md).
 
-const DOC_VERSION = '1.1.2';
+const DOC_VERSION = '1.1.3';
 
 interface Section {
   id: string;
@@ -255,8 +255,17 @@ const SECTIONS: Section[] = [
             <strong>Rang suivant</strong> : points restants et estimation en nombre de sets.
           </li>
           <li>
-            <strong>Sets</strong>, <strong>manches Ranked</strong>, <strong>série</strong> et <strong>trophées</strong> de la
-            session.
+            <strong>Sets gagnés</strong> : sets Ranked remportés sur les sets terminés de la session (« 2 sur 3 »), avec le
+            nombre de sets perdus, le pourcentage gagné et les sets encore en cours. Un set se joue en 3 manches maximum : le
+            premier à 2 manches gagnées l’emporte.
+          </li>
+          <li>
+            <strong>Manches gagnées</strong> : parties Ranked gagnées sur les parties Ranked jouées pendant la session (chaque
+            set compte 2 ou 3 manches).
+          </li>
+          <li>
+            <strong>Série</strong> (victoires ou défaites d’affilée, en sets) et <strong>trophées</strong> gagnés ou perdus
+            sur la session.
           </li>
           <li>Les sets de la session avec les points gagnés ou perdus, les brawlers joués et les dernières parties.</li>
         </List>
@@ -975,6 +984,10 @@ const SECTIONS: Section[] = [
     keywords: 'versions changelog nouveautés',
     body: (
       <>
+        <H3>1.1.3</H3>
+        <List>
+          <li>En direct : tuiles « Sets gagnés » et « Manches gagnées » plus explicites (« 2 sur 3 », défaites, pourcentage).</li>
+        </List>
         <H3>1.1.2</H3>
         <List>
           <li>
