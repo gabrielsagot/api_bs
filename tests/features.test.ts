@@ -11,7 +11,8 @@ import { attachEloChanges, defaultTierThreshold, nextTierInfo, tierThresholds } 
 import { groupRankedSets } from '../server/stats/ranked';
 import { withBattleSamples } from '../server/stats/trophies';
 import { fameLabel } from '../shared/labels';
-import { contrastRatio, modeIconId, nameColor, tierIconId } from '../web/src/lib/bs';
+import { NAME_STYLES, guessNameStyle } from '../shared/nameStyles';
+import { contrastRatio, modeIconId, nameStyleCss, tierIconId } from '../web/src/lib/bs';
 import { apiTime, stored, teamBattle } from './fixtures';
 
 const base = '2026-09-01T18:00:00Z';
@@ -203,12 +204,21 @@ describe('repères Brawl Stars', () => {
     expect(fameLabel(null)).toBeNull();
   });
 
-  it('garde la couleur du pseudo en la rendant lisible sur fond blanc', () => {
-    expect(nameColor('0xfff05637')).toBe('#f05637');
-    expect(nameColor('0xffffffff')).toBeNull(); // pseudo blanc par défaut
-    expect(nameColor('n/a')).toBeNull();
-    const pale = nameColor('0xfffff05e')!; // jaune pâle : assombri, même teinte
-    expect(contrastRatio(pale, '#ffffff')).toBeGreaterThanOrEqual(3);
+  it('retrouve le dégradé du pseudo à partir de la couleur de l’API', () => {
+    expect(guessNameStyle('0xfff05637')?.id).toBe('braise');
+    expect(guessNameStyle('0xffffffff')?.id).toBe('blanc');
+    expect(guessNameStyle('n/a')).toBeNull();
+    expect(nameStyleCss('0xffffffff', null)).toBeNull(); // pseudo blanc : couleur du texte
+    expect(nameStyleCss('0xfff05637', null)?.backgroundImage).toContain('linear-gradient');
+    // Le choix manuel l'emporte sur la déduction.
+    expect(nameStyleCss('0xfff05637', 'blanc')).toBeNull();
+    // Chaque teinte reste lisible sur fond blanc.
+    for (const style of NAME_STYLES.filter((s) => s.id !== 'blanc')) {
+      const css = nameStyleCss(null, style.id)!;
+      for (const color of String(css.backgroundImage).match(/#[0-9a-f]{6}/g)!) {
+        expect(contrastRatio(color, '#ffffff')).toBeGreaterThanOrEqual(2);
+      }
+    }
   });
 
   it('associe rangs et modes à leurs icônes', () => {

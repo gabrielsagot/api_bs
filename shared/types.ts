@@ -15,6 +15,8 @@ export interface PlayerListItem {
   name: string;
   /** Couleur du pseudo choisie dans le jeu, au format de l'API (« 0xfff05637 »). */
   nameColor: string | null;
+  /** Style de pseudo choisi dans les Réglages (identifiant de NAME_STYLES), null = automatique. */
+  nameStyle: string | null;
   iconId: number | null;
   isPrimary: boolean;
   colorSlot: number;
@@ -560,6 +562,7 @@ export interface ComparePlayerDto {
   slug: string;
   name: string;
   nameColor: string | null;
+  nameStyle: string | null;
   iconId: number | null;
   colorSlot: number;
   trophies: number | null;

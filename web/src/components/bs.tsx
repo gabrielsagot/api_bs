@@ -1,27 +1,34 @@
 import clsx from 'clsx';
 import type { CSSProperties, ReactNode } from 'react';
 import { fameLabel, modeLabel, rarityLabel, tierName } from '../../../shared/labels';
-import { fameColor, modeColor, nameColor, rarityColor, readableColor, tierColor } from '../lib/bs';
+import { fameStyle, modeColor, nameStyleCss, rarityColor, readableColor, tierColor } from '../lib/bs';
 import { ModeIcon, RankIcon } from './avatars';
 
 // Éléments d'affichage aux couleurs de Brawl Stars, en restant sobres :
 // pas de fond coloré, seulement la couleur du texte ou une pastille.
 
-/** Pseudo dans la couleur choisie dans le jeu (couleur du texte par défaut si blanc). */
+/**
+ * Pseudo dans sa couleur du jeu : dégradé choisi dans les Réglages ou deviné d'après
+ * la couleur de l'API ; couleur du texte normale pour un pseudo blanc.
+ */
 export function PlayerName({
   name,
   color,
+  nameStyle,
   className,
   minContrast,
 }: {
   name: ReactNode;
   color: string | null | undefined;
+  nameStyle?: string | null;
   className?: string;
   minContrast?: number;
 }) {
-  const css = nameColor(color, minContrast);
+  const css = nameStyleCss(color, nameStyle, minContrast);
+  // En ligne pour que le dégradé épouse la largeur du texte, pas celle du bloc.
+  const layout: CSSProperties = css?.backgroundImage ? { display: 'inline-block', maxWidth: '100%', verticalAlign: 'top' } : {};
   return (
-    <span className={className} style={css ? { color: css } : undefined}>
+    <span className={className} style={css ? { ...layout, ...css } : undefined}>
       {name}
     </span>
   );
@@ -56,18 +63,26 @@ export function tierTextColor(tier: number | null | undefined): string | undefin
   return color ? readableColor(color, 3) : undefined;
 }
 
-/** Palier de gloire traduit, avec une pastille à sa couleur. */
+/** Palier de gloire traduit, avec une pastille aux couleurs de son emblème. */
 export function FameBadge({ name, fame, className }: { name: string | null | undefined; fame?: number | null; className?: string }) {
   const label = fameLabel(name);
   if (!label) return null;
-  const color = fameColor(name);
+  const style = fameStyle(name);
   return (
     <span
       className={clsx('inline-flex items-center gap-1.5 whitespace-nowrap', className)}
       title={fame ? `${fame.toLocaleString('fr-FR')} points de gloire` : undefined}
     >
-      {color && <span className="size-2 shrink-0 rounded-full" style={{ background: color }} aria-hidden />}
-      <span style={color ? { color: readableColor(color, 4.5) } : undefined}>{label}</span>
+      {style && (
+        <span
+          className="size-2.5 shrink-0 rounded-full"
+          style={{ background: style.fill, boxShadow: `0 0 0 1.5px ${style.ring}` }}
+          aria-hidden
+        />
+      )}
+      <span className="font-medium" style={style ? { color: readableColor(style.text, 4.5) } : undefined}>
+        {label}
+      </span>
     </span>
   );
 }

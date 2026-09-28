@@ -42,7 +42,7 @@ export function HomePage() {
         title={
           <span className="flex min-w-0 items-center gap-3">
             <PlayerIcon iconId={player.iconId} name={player.name} size={44} />
-            <PlayerName name={player.name} color={player.nameColor} className="truncate" />
+            <PlayerName name={player.name} color={player.nameColor} nameStyle={player.nameStyle} className="truncate" />
           </span>
         }
         subtitle={

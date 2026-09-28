@@ -110,7 +110,7 @@ export function ComparePage() {
               )}
             >
               <PlayerIcon iconId={p.iconId} name={p.name} size={24} />
-              <PlayerName name={p.name} color={p.nameColor} minContrast={4.5} className={active ? undefined : 'opacity-60'} />
+              <PlayerName name={p.name} color={p.nameColor} nameStyle={p.nameStyle} minContrast={2.5} className={active ? undefined : 'opacity-60'} />
               <span className="size-2 rounded-full" style={{ background: active ? seriesColor(p.colorSlot) : '#d2d2d7' }} aria-hidden />
             </button>
           );
@@ -129,7 +129,7 @@ export function ComparePage() {
                     <th key={p.slug} className="px-2 pb-3 text-right text-[13px] font-semibold">
                       <span className="inline-flex items-center gap-1.5">
                         <span className="h-[2px] w-3 rounded-full" style={{ background: seriesColor(p.colorSlot) }} aria-hidden />
-                        <PlayerName name={p.name} color={p.nameColor} minContrast={4.5} />
+                        <PlayerName name={p.name} color={p.nameColor} nameStyle={p.nameStyle} minContrast={2.5} />
                       </span>
                     </th>
                   ))}

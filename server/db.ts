@@ -104,6 +104,9 @@ const MIGRATIONS: string[] = [
   ALTER TABLE player_snapshots ADD COLUMN ranked_elo INTEGER;
   ALTER TABLE player_snapshots ADD COLUMN ranked_rank INTEGER;
   `,
+  /* v3 : style de pseudo choisi à la main (dégradé du jeu), sinon deviné */ `
+  ALTER TABLE players ADD COLUMN name_style TEXT;
+  `,
 ];
 
 export class Db {
