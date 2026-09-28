@@ -156,6 +156,7 @@ interface SimPlayer {
   solo: number;
   duo: number;
   tier: number;
+  bestTier: number;
   favorites: number[];
 }
 
@@ -224,6 +225,7 @@ function createPlayer(
     solo: between(rand, 600, 1_500),
     duo: between(rand, 900, 2_200),
     tier: options.tier,
+    bestTier: options.tier + 1.5,
     favorites,
   };
 }
@@ -244,6 +246,15 @@ function toApiPlayer(sim: SimPlayer): ApiPlayer {
     '3vs3Victories': sim.victories3v3,
     soloVictories: sim.solo,
     duoVictories: sim.duo,
+    // Ranked : ~370 points par rang, comme dans le jeu.
+    rankedSeasonId: 49,
+    rankedRank: Math.round(sim.tier),
+    rankedElo: Math.round(sim.tier * 370),
+    highestSeasonRankedRank: Math.round(Math.max(sim.tier, sim.bestTier - 1)),
+    highestSeasonRankedElo: Math.round(Math.max(sim.tier, sim.bestTier - 1) * 370),
+    highestAllTimeRankedRank: Math.round(Math.max(sim.tier, sim.bestTier)),
+    highestAllTimeRankedElo: Math.round(Math.max(sim.tier, sim.bestTier) * 370),
+    fameTierName: 'RISING FAME II',
     club: sim.club,
     brawlers: brawlers.map((b) => ({
       id: b.id,
@@ -376,6 +387,7 @@ function rankedSet(rand: Rand, sim: SimPlayer, start: number, teammates: ApiBatt
     at += between(rand, 150, 260) * 1000;
   }
   sim.tier = Math.min(21.4, Math.max(4, sim.tier + (wins === 2 ? 0.34 : -0.3)));
+  sim.bestTier = Math.max(sim.bestTier, sim.tier);
   sim.expPoints += between(rand, 20, 60);
   return { battles, end: at };
 }

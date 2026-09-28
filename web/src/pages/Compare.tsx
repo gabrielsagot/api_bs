@@ -24,6 +24,7 @@ const METRICS: Metric[] = [
   { label: 'Record', value: (p) => p.highestTrophies, format: fmtInt },
   { label: 'Variation sur 7 j', value: (p) => p.trophyDelta7d, format: (v) => fmtSigned(v) },
   { label: 'Rang Ranked', value: (p) => p.rankedTier, format: (v) => tierName(v) },
+  { label: 'Points Ranked', value: (p) => p.rankedElo, format: fmtInt },
   { label: 'Winrate Ranked · 30 j', value: (p) => p.rankedWinRate30d, format: (v) => fmtPct(v, 1) },
   { label: 'Parties sur 7 j', value: (p) => p.games7d.games, format: fmtInt },
   { label: 'Winrate sur 7 j', value: (p) => p.games7d.winRate, format: (v) => fmtPct(v, 1) },

@@ -9,6 +9,7 @@ import type {
   CompareResponse,
   OverviewResponse,
   Period,
+  RankedProfileDto,
   RankedQueue,
   RankedResponse,
   RotationResponse,
@@ -75,10 +76,44 @@ function statsByBrawler(battles: readonly StoredBattle[]): Map<number, WinLoss> 
   return new Map(breakdown(battles, byBrawlerKey).map((row) => [row.id!, row]));
 }
 
+/**
+ * Référence d'un écart : sans au moins une heure d'historique, un écart « 0 sur 30 j »
+ * serait trompeur (le suivi vient de commencer) ; on renvoie alors undefined.
+ */
+function usableReference<T extends { taken_at: string }>(reference: T | undefined, now = Date.now()): T | undefined {
+  return reference && now - Date.parse(reference.taken_at) >= 60 * 60 * 1000 ? reference : undefined;
+}
+
+/**
+ * Points (ELO) et records Ranked lus dans le profil, avec leur évolution
+ * enregistrée par le dashboard depuis `since`.
+ */
+function rankedProfileView(db: Db, row: PlayerRow, since: string | null, now: number): RankedProfileDto {
+  const profile = playerProfile(row);
+  const samples = loadSnapshots(db, row.tag, since)
+    .filter((s) => s.ranked_elo !== null)
+    .map((s) => ({ taken_at: s.taken_at, trophies: s.ranked_elo as number }));
+  const before = since ? snapshotAt(db, row.tag, since) : undefined;
+  const baseline = before?.ranked_elo != null ? { taken_at: before.taken_at, trophies: before.ranked_elo } : undefined;
+  const elo = profile?.rankedElo ?? null;
+  const reference = usableReference(baseline ?? samples[0], now);
+  return {
+    seasonId: profile?.rankedSeasonId ?? null,
+    elo,
+    tier: profile?.rankedRank ?? null,
+    seasonBestElo: profile?.highestSeasonRankedElo ?? null,
+    seasonBestTier: profile?.highestSeasonRankedRank ?? null,
+    allTimeBestElo: profile?.highestAllTimeRankedElo ?? null,
+    allTimeBestTier: profile?.highestAllTimeRankedRank ?? null,
+    eloDelta: elo !== null && reference ? elo - reference.trophies : null,
+    eloSeries: trophySeries(samples, baseline, since, new Date(now).toISOString(), 300),
+  };
+}
+
 /** Variation des trophées depuis `since` (ou depuis le début du suivi s'il est plus récent). */
 function trophyDeltaSince(db: Db, tag: string, since: string, current: number | null): number | null {
   if (current === null) return null;
-  const baseline = snapshotAt(db, tag, since) ?? firstSnapshot(db, tag);
+  const baseline = usableReference(snapshotAt(db, tag, since) ?? firstSnapshot(db, tag));
   return baseline ? current - baseline.trophies : null;
 }
 
@@ -89,6 +124,7 @@ export function overviewView({ db, catalog }: ViewDeps, row: PlayerRow, now = Da
   const { since, prevSince } = periodRange('30d', now);
   const core = rankedCore(loadRankedBattles(db, row.tag), since, prevSince, now);
   const { periodBattles, periodSets, ...rankedStats } = core;
+  const rankedProfile = rankedProfileView(db, row, since, now);
 
   const since7d = isoAgo(7 * DAY_MS, now);
   const current = profile?.trophies ?? null;
@@ -98,6 +134,9 @@ export function overviewView({ db, catalog }: ViewDeps, row: PlayerRow, now = Da
     player: toProfileDto(row),
     ranked: {
       ...rankedStats,
+      // Le profil donne le rang exact, même sans partie classée récente.
+      currentTier: rankedProfile.tier ?? rankedStats.currentTier,
+      profile: rankedProfile,
       recentSets: periodSets.slice(0, 8),
       topBrawlers: breakdown(periodBattles, byBrawlerKey, { limit: 5 }),
       topMaps: breakdown(periodBattles, byMapKey, { limit: 5 }),
@@ -139,8 +178,11 @@ export function rankedView(
   const ranked = loadRankedBattles(db, row.tag).filter((b) => matchesQueue(b, queue));
   const { since, prevSince } = periodRange(period, now);
   const { periodBattles, periodSets, ...core } = rankedCore(ranked, since, prevSince, now);
+  const profile = rankedProfileView(db, row, since, now);
   return {
     ...core,
+    currentTier: profile.tier ?? core.currentTier,
+    profile,
     period,
     queue,
     byBrawler: breakdown(periodBattles, byBrawlerKey),
@@ -161,7 +203,7 @@ export function trophiesView({ db }: ViewDeps, row: PlayerRow, period: Period, n
   const snapshots = loadSnapshots(db, row.tag, since);
   const baseline = since ? snapshotAt(db, row.tag, since) : undefined;
   const current = profile?.trophies ?? snapshots.at(-1)?.trophies ?? null;
-  const reference = baseline ?? snapshots[0];
+  const reference = usableReference(baseline ?? snapshots[0], now);
 
   const trophyBattles = loadBattles(db, row.tag, since).filter((b) => battleCategory(b.type) === 'trophies');
   const games = winLoss(trophyBattles);
@@ -181,7 +223,7 @@ export function trophiesView({ db }: ViewDeps, row: PlayerRow, period: Period, n
     trophyGames: { ...games, trophyNet, avgPerGame: trophyBattles.length ? trophyNet / trophyBattles.length : null },
     brawlers: (profile?.brawlers ?? [])
       .map((brawler) => {
-        const start = startStates.get(brawler.id) ?? firstStates.get(brawler.id);
+        const start = startStates.get(brawler.id) ?? usableReference(firstStates.get(brawler.id), now);
         const stats = perBrawler.get(brawler.id);
         return {
           id: brawler.id,
@@ -357,7 +399,8 @@ export function compareView({ db }: ViewDeps, rows: PlayerRow[], now = Date.now(
       trophies,
       trophyDelta7d: trophyDeltaSince(db, row.tag, since7d, trophies),
       games7d: winLoss(loadBattles(db, row.tag, since7d)),
-      rankedTier: tierTimeline(ranked).at(-1)?.tier ?? null,
+      rankedTier: profile?.rankedRank ?? tierTimeline(ranked).at(-1)?.tier ?? null,
+      rankedElo: profile?.rankedElo ?? null,
       rankedWinRate30d: winLoss(ranked.filter((b) => b.battleTime >= since30d)).winRate,
       series: trophySeries(
         loadSnapshots(db, row.tag, since30d),

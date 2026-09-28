@@ -3,7 +3,7 @@ import { modeLabel, tierName } from '../../../shared/labels';
 import type { RankedQueue } from '../../../shared/types';
 import { BrawlerAvatar } from '../components/avatars';
 import { SetRow } from '../components/battles';
-import { ChartCard, TierChart } from '../components/charts';
+import { RankedProgressCard } from '../components/ranked';
 import { BreakdownTable } from '../components/tables';
 import {
   Card,
@@ -19,7 +19,7 @@ import {
   StatTile,
 } from '../components/ui';
 import { useRanked } from '../lib/api';
-import { fmtDateTime, fmtInt, fmtPct, fmtPts, plural } from '../lib/format';
+import { fmtInt, fmtPct, fmtPts, fmtSigned, plural } from '../lib/format';
 import { useNow, usePlayerSlug, useSearchParam } from '../lib/hooks';
 import { streakLabel } from './Home';
 
@@ -74,14 +74,30 @@ export function RankedPage() {
           </Card>
         ) : (
           <>
-            <div className="grid grid-cols-2 gap-4 md:grid-cols-3 2xl:grid-cols-6">
+            <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
               <StatTile
-                className="col-span-2 md:col-span-1"
+                label="Points Ranked"
+                value={fmtInt(data.profile.elo)}
+                delta={<Delta value={data.profile.eloDelta}>{fmtSigned(data.profile.eloDelta)}</Delta>}
+                sub={data.profile.eloDelta !== null ? 'sur la période' : undefined}
+              />
+              <StatTile
                 label="Rang actuel"
                 value={tierName(data.currentTier)}
                 sub={data.startTier !== null ? `au départ : ${tierName(data.startTier)}` : undefined}
               />
-              <StatTile className="col-span-2 md:col-span-1" label="Meilleur rang" value={tierName(data.bestTier)} sub="sur la période" />
+              <StatTile
+                className="col-span-2 md:col-span-1"
+                label="Record de la saison"
+                value={tierName(data.profile.seasonBestTier ?? data.bestTier)}
+                sub={data.profile.seasonBestElo !== null ? `${fmtInt(data.profile.seasonBestElo)} points` : 'sur la période'}
+              />
+              <StatTile
+                className="col-span-2 md:col-span-1"
+                label="Record absolu"
+                value={tierName(data.profile.allTimeBestTier)}
+                sub={data.profile.allTimeBestElo !== null ? `${fmtInt(data.profile.allTimeBestElo)} points` : undefined}
+              />
               <StatTile
                 label="Winrate (manches)"
                 value={fmtPct(data.games.winRate, 1)}
@@ -97,17 +113,13 @@ export function RankedPage() {
               <StatTile label="Série en cours" value={streak.value} sub={streak.sub} />
             </div>
 
-            <ChartCard
+            <RankedProgressCard
               className="mt-4"
-              title="Évolution du rang"
-              subtitle="Chaque marche correspond à un changement de rang."
-              table={{
-                columns: ['Date', 'Rang'],
-                rows: [...data.timeline].reverse().map((p) => [fmtDateTime(p.t), tierName(p.tier)]),
-              }}
-            >
-              <TierChart points={data.timeline} height={260} />
-            </ChartCard>
+              subtitle="Points enregistrés par le dashboard, ou marches du rang lues dans tes parties."
+              profile={data.profile}
+              timeline={data.timeline}
+              height={260}
+            />
 
             <div className="mt-4 grid gap-4 lg:grid-cols-2">
               <Card>

@@ -11,6 +11,7 @@ import { usePlayerSlug } from '../lib/hooks';
 const KINDS: { value: GoalKind; label: string }[] = [
   { value: 'trophies', label: 'Trophées totaux' },
   { value: 'ranked_tier', label: 'Rang Ranked' },
+  { value: 'ranked_elo', label: 'Points Ranked' },
   { value: 'brawler_trophies', label: 'Trophées d’un brawler' },
   { value: 'power11', label: 'Brawlers niveau 11' },
   { value: 'brawlers_owned', label: 'Brawlers débloqués' },
@@ -59,6 +60,8 @@ export function GoalsPage() {
         return overview.data?.trophies.current ? Math.ceil((overview.data.trophies.current + 1000) / 500) * 500 : null;
       case 'brawler_trophies':
         return selectedBrawler?.trophies != null ? Math.ceil((selectedBrawler.trophies + 100) / 50) * 50 : null;
+      case 'ranked_elo':
+        return overview.data?.ranked.profile.elo != null ? Math.ceil((overview.data.ranked.profile.elo + 300) / 100) * 100 : null;
       case 'power11':
         return (collection.data?.totals.power11 ?? 0) + 5;
       case 'brawlers_owned':

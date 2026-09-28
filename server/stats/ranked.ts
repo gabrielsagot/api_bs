@@ -204,7 +204,7 @@ export function mapPicks(battles: readonly StoredBattle[], minGames = 2): MapPic
     const onMap = battles.filter((b) => b.map === mapRow.label && b.mode === mapRow.sub);
     const prior = mapRow.winRate ?? 0.5;
     const best = breakdown(onMap, byBrawlerKey)
-      .filter((row) => row.wins + row.losses >= 2)
+      .filter((row) => row.wins + row.losses >= 2 && row.wins > 0)
       .sort((a, b) => shrunkWinRate(b, prior, 8) - shrunkWinRate(a, prior, 8) || b.games - a.games)
       .slice(0, 3);
     return { map: mapRow.label, mode: mapRow.sub ?? '', games: mapRow.games, winRate: mapRow.winRate, best };

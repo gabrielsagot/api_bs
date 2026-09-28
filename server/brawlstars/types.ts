@@ -17,6 +17,7 @@ export interface ApiPlayerBrawler {
   highestTrophies: number;
   prestigeLevel?: number;
   currentWinStreak?: number;
+  buffies?: { gadget?: boolean; starPower?: boolean; hyperCharge?: boolean };
   maxWinStreak?: number;
   gears?: ApiAccessory[];
   starPowers?: ApiAccessory[];
@@ -35,6 +36,18 @@ export interface ApiPlayer {
   highestTrophies: number;
   expLevel?: number;
   expPoints?: number;
+  totalPrestigeLevel?: number;
+  fame?: number;
+  fameTierName?: string;
+  /** Ranked : rang (1 = Bronze I … 22 = Pro) et points (ELO) de la saison en cours. */
+  rankedSeasonId?: number;
+  rankedRank?: number;
+  rankedRankName?: string;
+  rankedElo?: number;
+  highestSeasonRankedRank?: number;
+  highestSeasonRankedElo?: number;
+  highestAllTimeRankedRank?: number;
+  highestAllTimeRankedElo?: number;
   isQualifiedFromChampionshipChallenge?: boolean;
   '3vs3Victories'?: number;
   soloVictories?: number;

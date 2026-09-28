@@ -12,6 +12,7 @@ export const GOAL_KINDS: GoalKind[] = [
   'trophies',
   'brawler_trophies',
   'ranked_tier',
+  'ranked_elo',
   'power11',
   'brawlers_owned',
   'victories_3v3',
@@ -42,6 +43,8 @@ export function goalLabel(kind: GoalKind, target: number, brawlerName?: string |
       return `${brawlerName ?? 'Brawler'} à ${n} trophées`;
     case 'ranked_tier':
       return `Atteindre ${tierName(target)} en Ranked`;
+    case 'ranked_elo':
+      return `${n} points en Ranked`;
     case 'power11':
       return `${n} brawlers niveau ${MAX_POWER_LEVEL}`;
     case 'brawlers_owned':
@@ -59,7 +62,9 @@ export function goalCurrentValue(kind: GoalKind, brawlerId: number | null, conte
     case 'brawler_trophies':
       return profile?.brawlers.find((b) => b.id === brawlerId)?.trophies ?? null;
     case 'ranked_tier':
-      return tierTimeline(context.ranked).at(-1)?.tier ?? null;
+      return profile?.rankedRank ?? tierTimeline(context.ranked).at(-1)?.tier ?? null;
+    case 'ranked_elo':
+      return profile?.rankedElo ?? null;
     case 'power11':
       return profile ? profile.brawlers.filter((b) => b.power >= MAX_POWER_LEVEL).length : null;
     case 'brawlers_owned':
@@ -80,6 +85,7 @@ export function goalHistory(db: Db, tag: string, kind: GoalKind, brawlerId: numb
       return tierTimeline(context.ranked).map((p) => ({ t: p.t, v: p.tier }));
     default: {
       const column = {
+        ranked_elo: 'ranked_elo',
         trophies: 'trophies',
         power11: 'power11',
         brawlers_owned: 'brawlers_owned',

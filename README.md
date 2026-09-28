@@ -123,8 +123,9 @@ Quand le Mac est en veille, la collecte est en pause. Pour une collecte continue
   dashboard interroge l'API toutes les 2 min pendant que tu joues et toutes les 10 min au repos (réglable avec
   `POLL_ACTIVE_SECONDS` et `POLL_IDLE_SECONDS`). Si tu joues plus de 25 parties pendant qu'il est éteint, les plus
   anciennes sont perdues.
-- **Ranked** : l'API ne donne pas tes points de classement. Le rang (Bronze I → Pro) est lu dans tes parties classées,
-  et les sets BO3 sont reconstitués en regroupant les manches jouées contre les mêmes adversaires.
+- **Ranked** : ton rang, tes points (ELO) et tes records de saison et absolu viennent du profil. Le dashboard enregistre
+  l'évolution de tes points à chaque collecte. Les sets BO3 sont reconstitués en regroupant les manches jouées contre les
+  mêmes adversaires.
 - **Piège de l'API** : le type de combat `ranked` désigne en réalité les parties de **trophées**. Le mode Ranked
   apparaît sous `soloRanked` et `teamRanked`. Le dashboard fait la différence pour toi.
 - **Images** : l'API officielle n'en fournit aucune. Les portraits viennent du CDN communautaire Brawlify et sont mis en

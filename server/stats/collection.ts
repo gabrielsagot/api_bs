@@ -65,6 +65,13 @@ export function buildCard(
     prestige: typeof owned?.prestigeLevel === 'number' ? owned.prestigeLevel : null,
     currentWinStreak: typeof owned?.currentWinStreak === 'number' ? owned.currentWinStreak : null,
     maxWinStreak: typeof owned?.maxWinStreak === 'number' ? owned.maxWinStreak : null,
+    buffies: owned?.buffies
+      ? {
+          gadget: Boolean(owned.buffies.gadget),
+          starPower: Boolean(owned.buffies.starPower),
+          hyperCharge: Boolean(owned.buffies.hyperCharge),
+        }
+      : null,
     gadgets,
     starPowers,
     hyperCharges,

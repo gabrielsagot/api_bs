@@ -32,6 +32,9 @@ export interface PlayerProfileDto extends PlayerListItem {
   victories3v3: number | null;
   soloVictories: number | null;
   duoVictories: number | null;
+  totalPrestigeLevel: number | null;
+  fame: number | null;
+  fameTierName: string | null;
   trackedSince: string;
 }
 
@@ -226,7 +229,22 @@ export interface RankedCore {
   timeline: TierPoint[];
 }
 
+/** Points (ELO) et records Ranked, tels que fournis par le profil du joueur. */
+export interface RankedProfileDto {
+  seasonId: number | null;
+  elo: number | null;
+  tier: number | null;
+  seasonBestElo: number | null;
+  seasonBestTier: number | null;
+  allTimeBestElo: number | null;
+  allTimeBestTier: number | null;
+  /** Variation des points sur la période affichée. */
+  eloDelta: number | null;
+  eloSeries: SeriesPoint[];
+}
+
 export interface RankedResponse extends RankedCore {
+  profile: RankedProfileDto;
   period: Period;
   queue: RankedQueue;
   byBrawler: BreakdownRow[];
@@ -304,6 +322,7 @@ export interface BrawlerCardDto {
   prestige: number | null;
   currentWinStreak: number | null;
   maxWinStreak: number | null;
+  buffies: { gadget: boolean; starPower: boolean; hyperCharge: boolean } | null;
   gadgets: AccessoryDto[];
   starPowers: AccessoryDto[];
   hyperCharges: AccessoryDto[];
@@ -382,6 +401,7 @@ export type GoalKind =
   | 'trophies'
   | 'brawler_trophies'
   | 'ranked_tier'
+  | 'ranked_elo'
   | 'power11'
   | 'brawlers_owned'
   | 'victories_3v3';
@@ -414,6 +434,7 @@ export interface CreateGoalInput {
 export interface OverviewResponse {
   player: PlayerProfileDto;
   ranked: RankedCore & {
+    profile: RankedProfileDto;
     recentSets: RankedSetDto[];
     topBrawlers: BreakdownRow[];
     topMaps: BreakdownRow[];
@@ -449,6 +470,7 @@ export interface ComparePlayerDto {
   trophyDelta7d: number | null;
   games7d: WinLoss;
   rankedTier: number | null;
+  rankedElo: number | null;
   rankedWinRate30d: number | null;
   series: SeriesPoint[];
 }

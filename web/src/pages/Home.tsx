@@ -1,13 +1,14 @@
 import { Link } from 'react-router';
-import { tierName } from '../../../shared/labels';
+import { tierName, titleCase } from '../../../shared/labels';
 import type { StreakDto } from '../../../shared/types';
 import { SetRow } from '../components/battles';
 import { GoalsCard, SessionCard } from '../components/cards';
-import { ChartCard, Sparkline, TierChart } from '../components/charts';
+import { Sparkline } from '../components/charts';
+import { RankedProgressCard, tierWithElo } from '../components/ranked';
 import { BreakdownTable } from '../components/tables';
 import { Card, CardHeader, Delta, EmptyState, ErrorState, LoadingState, PageHeader, Refetching, StatTile } from '../components/ui';
 import { useOverview } from '../lib/api';
-import { fmtDateTime, fmtInt, fmtPct, fmtPts, fmtSigned } from '../lib/format';
+import { fmtInt, fmtPct, fmtPts, fmtSigned } from '../lib/format';
 import { useNow, usePlayerSlug } from '../lib/hooks';
 
 export function streakLabel(streak: StreakDto, unit: 'set' | 'manche'): { value: string; sub: string } {
@@ -41,27 +42,54 @@ export function HomePage() {
             {player.tag}
             {player.clubName && ` · ${player.clubName}`}
             {player.expLevel !== null && ` · niveau ${player.expLevel}`}
+            {player.fameTierName && ` · ${titleCase(player.fameTierName)}`}
           </>
         }
       />
 
       <div className="grid gap-4 lg:grid-cols-12">
         <Card className="flex flex-col justify-between lg:col-span-5">
-          <div className="text-[13px] font-medium text-ink-2">Rang Ranked</div>
+          <div className="flex items-baseline justify-between gap-2 text-[13px] font-medium text-ink-2">
+            <span>Rang Ranked</span>
+            {ranked.profile.seasonId !== null && <span className="text-ink-3">Saison {ranked.profile.seasonId}</span>}
+          </div>
           {hasRanked ? (
             <>
               <div className="mt-3 text-[44px] font-semibold leading-none tracking-[-0.03em] sm:text-[56px]">
                 {tierName(ranked.currentTier)}
               </div>
+              {ranked.profile.elo !== null && (
+                <div className="mt-3 flex flex-wrap items-baseline gap-x-2 text-[15px]">
+                  <span className="font-semibold">{fmtInt(ranked.profile.elo)} points</span>
+                  <Delta value={ranked.profile.eloDelta} className="text-[13px]">
+                    {fmtSigned(ranked.profile.eloDelta)} sur 30 j
+                  </Delta>
+                </div>
+              )}
               <dl className="mt-5 flex flex-wrap gap-x-6 gap-y-1 text-[13px]">
-                <div className="flex gap-1.5">
-                  <dt className="text-ink-2">Meilleur sur 30 j</dt>
-                  <dd className="font-medium">{tierName(ranked.bestTier)}</dd>
-                </div>
-                <div className="flex gap-1.5">
-                  <dt className="text-ink-2">Il y a 30 j</dt>
-                  <dd className="font-medium">{tierName(ranked.startTier)}</dd>
-                </div>
+                {ranked.profile.seasonBestElo !== null ? (
+                  <>
+                    <div className="flex gap-1.5">
+                      <dt className="text-ink-2">Record saison</dt>
+                      <dd className="font-medium">{tierWithElo(ranked.profile.seasonBestTier, ranked.profile.seasonBestElo)}</dd>
+                    </div>
+                    <div className="flex gap-1.5">
+                      <dt className="text-ink-2">Record absolu</dt>
+                      <dd className="font-medium">{tierWithElo(ranked.profile.allTimeBestTier, ranked.profile.allTimeBestElo)}</dd>
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <div className="flex gap-1.5">
+                      <dt className="text-ink-2">Meilleur sur 30 j</dt>
+                      <dd className="font-medium">{tierName(ranked.bestTier)}</dd>
+                    </div>
+                    <div className="flex gap-1.5">
+                      <dt className="text-ink-2">Il y a 30 j</dt>
+                      <dd className="font-medium">{tierName(ranked.startTier)}</dd>
+                    </div>
+                  </>
+                )}
               </dl>
             </>
           ) : (
@@ -99,17 +127,13 @@ export function HomePage() {
       </div>
 
       <div className="mt-4 grid gap-4 lg:grid-cols-12">
-        <ChartCard
+        <RankedProgressCard
           className="lg:col-span-7"
-          title="Évolution du rang"
           subtitle="30 derniers jours"
-          table={{
-            columns: ['Date', 'Rang'],
-            rows: [...ranked.timeline].reverse().map((p) => [fmtDateTime(p.t), tierName(p.tier)]),
-          }}
-        >
-          <TierChart points={ranked.timeline} height={310} />
-        </ChartCard>
+          profile={ranked.profile}
+          timeline={ranked.timeline}
+          height={310}
+        />
         <Card className="lg:col-span-5">
           <CardHeader
             title="Derniers sets"

@@ -58,7 +58,7 @@ describe('gestion de la clé API', () => {
     const keys = new AutoKeyProvider({ email: 'a@b.c', password: 'x', keyName: 'brawl-dashboard', kv, fetchImpl: portal.fetchImpl });
     expect(await keys.getKey()).toBe('token-9.9.9.9');
     expect(portal.calls).toEqual(['portal:/login', 'portal:/apikey/list', 'portal:/apikey/create']);
-    expect(kv.getJson<{ ip: string }>('api_key')?.value.ip).toBe('9.9.9.9');
+    expect(kv.getJson<{ ips: string[] }>('api_key')?.value.ips).toEqual(['9.9.9.9']);
     expect(keys.status().state).toBe('ok');
   });
 
@@ -105,6 +105,26 @@ describe('gestion de la clé API', () => {
     const client = new BrawlStarsClient('https://api.brawlstars.com/v1', keys, fetchImpl);
     expect(await client.getBrawlers()).toEqual([]);
     expect(apiCalls).toEqual(['Bearer token-1.1.1.1', 'Bearer token-9.9.9.9']);
+  });
+
+  it('autorise l’IP réellement vue par l’API quand elle diffère de celle du portail', async () => {
+    const kv = new KvStore(new Db(':memory:'));
+    const portal = fakeSupercell({ ip: '8.8.8.8' });
+    const created: string[][] = [];
+    const fetchImpl = (async (input: string | URL | Request, init?: RequestInit) => {
+      const url = String(input);
+      if (url.endsWith('/apikey/create')) created.push(JSON.parse(String(init?.body)).cidrRanges);
+      if (!url.startsWith('https://api.brawlstars.com')) return portal.fetchImpl(input, init);
+      const auth = new Headers(init?.headers).get('authorization');
+      return auth === 'Bearer token-9.9.9.9'
+        ? json({ items: [] })
+        : json({ reason: 'accessDenied.invalidIp', message: 'API key does not allow access from IP 9.9.9.9' }, { status: 403 });
+    }) as typeof fetch;
+    const keys = new AutoKeyProvider({ email: 'a@b.c', password: 'x', keyName: 'brawl-dashboard', kv, fetchImpl });
+    const client = new BrawlStarsClient('https://api.brawlstars.com/v1', keys, fetchImpl);
+    expect(await client.getBrawlers()).toEqual([]);
+    expect(created).toEqual([['8.8.8.8'], ['9.9.9.9', '8.8.8.8']]);
+    expect(portal.calls.filter((c) => c.endsWith('/revoke'))).toHaveLength(1);
   });
 
   it('signale l’IP à déclarer en mode manuel', async () => {

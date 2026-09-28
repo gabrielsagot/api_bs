@@ -37,6 +37,8 @@ export interface SnapshotRow {
   star_powers: number | null;
   hyper_charges: number | null;
   gears: number | null;
+  ranked_elo: number | null;
+  ranked_rank: number | null;
 }
 
 export interface BrawlerSnapshotRow {
@@ -149,6 +151,9 @@ export function toProfileDto(row: PlayerRow): PlayerProfileDto {
     victories3v3: profile?.['3vs3Victories'] ?? null,
     soloVictories: profile?.soloVictories ?? null,
     duoVictories: profile?.duoVictories ?? null,
+    totalPrestigeLevel: profile?.totalPrestigeLevel ?? null,
+    fame: profile?.fame ?? null,
+    fameTierName: profile?.fameTierName ?? null,
     trackedSince: row.added_at,
   };
 }

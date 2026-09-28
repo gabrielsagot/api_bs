@@ -108,6 +108,19 @@ export function BrawlerDetailPage() {
             <Equipment title="Star powers" items={card.starPowers} emptyText="Aucune star power connue." />
             <Equipment title="Hypercharge" items={card.hyperCharges} emptyText="Pas d’hypercharge connue." />
             <Equipment title="Gears" items={card.gears} emptyText="Aucun gear équipé." />
+            {card.buffies && (
+              <Equipment
+                title="Buffies"
+                emptyText=""
+                items={(
+                  [
+                    ['gadget', 'Gadget'],
+                    ['starPower', 'Star power'],
+                    ['hyperCharge', 'Hypercharge'],
+                  ] as const
+                ).map(([key, name], index) => ({ id: index, name, owned: card.buffies![key], level: null }))}
+              />
+            )}
           </div>
         </Card>
         <Card>

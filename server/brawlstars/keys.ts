@@ -154,9 +154,14 @@ interface PortalKey {
 
 interface CachedKey {
   key: string;
-  ip: string;
+  /** IP autorisées par la clé. */
+  ips?: string[];
+  /** Ancien format (une seule IP). */
+  ip?: string;
   createdAt: string;
 }
+
+const MAX_IPS_PER_KEY = 5;
 
 class PortalSession {
   constructor(
@@ -188,8 +193,8 @@ class PortalSession {
     return data.keys ?? [];
   }
 
-  async createKey(name: string, description: string, ip: string): Promise<string> {
-    const input = { name, description, cidrRanges: [ip] };
+  async createKey(name: string, description: string, ips: string[]): Promise<string> {
+    const input = { name, description, cidrRanges: ips };
     let data: { key?: PortalKey };
     try {
       data = await this.post<{ key?: PortalKey }>('/apikey/create', { ...input, scopes: ['brawlstars'] });
@@ -228,10 +233,14 @@ export class AutoKeyProvider implements KeyProvider {
     this.state = {
       mode: 'auto',
       state: 'pending',
-      ip: this.cached?.ip ?? null,
+      ip: this.cachedIps().join(', ') || null,
       message: null,
       updatedAt: this.cached?.createdAt ?? null,
     };
+  }
+
+  private cachedIps(): string[] {
+    return this.cached?.ips ?? (this.cached?.ip ? [this.cached.ip] : []);
   }
 
   async getKey(): Promise<string> {
@@ -243,14 +252,17 @@ export class AutoKeyProvider implements KeyProvider {
 
   async handleAccessDenied(error: BrawlStarsError): Promise<boolean> {
     const previous = this.cached?.key;
-    log.warn(`Clé API refusée (${error.reason ?? error.status}) : création d’une nouvelle clé…`);
-    await this.renew(false);
+    // L'API indique l'IP qu'elle voit réellement : c'est celle-là qu'il faut autoriser.
+    const deniedIp = ipFromErrorMessage(error.message);
+    const newIp = deniedIp !== null && !this.cachedIps().includes(deniedIp);
+    log.warn(`Clé API refusée (${error.reason ?? error.status}${deniedIp ? `, IP ${deniedIp}` : ''}) : création d’une nouvelle clé…`);
+    await this.renew(newIp, deniedIp);
     return Boolean(this.cached && this.cached.key !== previous);
   }
 
   markOk(): void {
     if (this.state.state !== 'ok') {
-      this.state = { mode: 'auto', state: 'ok', ip: this.cached?.ip ?? null, message: null, updatedAt: now() };
+      this.state = { mode: 'auto', state: 'ok', ip: this.cachedIps().join(', ') || null, message: null, updatedAt: now() };
     }
   }
 
@@ -258,12 +270,15 @@ export class AutoKeyProvider implements KeyProvider {
     return this.state;
   }
 
-  /** Crée ou retrouve une clé valable pour l'IP actuelle. `force` ignore l'anti-spam. */
-  renew(force = true): Promise<void> {
+  /**
+   * Crée ou retrouve une clé valable pour l'IP actuelle. `force` ignore l'anti-spam ;
+   * `requiredIp` est l'IP refusée par l'API (prioritaire sur celle vue par le portail).
+   */
+  renew(force = true, requiredIp: string | null = null): Promise<void> {
     if (this.inFlight) return this.inFlight;
     if (!force && Date.now() - this.lastAttempt < RENEW_COOLDOWN_MS) return Promise.resolve();
     this.lastAttempt = Date.now();
-    this.inFlight = this.doRenew().finally(() => {
+    this.inFlight = this.doRenew(requiredIp).finally(() => {
       this.inFlight = null;
     });
     return this.inFlight;
@@ -299,20 +314,32 @@ export class AutoKeyProvider implements KeyProvider {
     return data.ip;
   }
 
-  private async doRenew(): Promise<void> {
+  private async doRenew(requiredIp: string | null): Promise<void> {
     this.state = { ...this.state, state: 'pending', message: 'Création de la clé API…' };
     try {
       const { session, ip: tokenIp } = await this.login();
-      const ip = tokenIp ?? (await this.publicIp());
-      const keys = await session.listKeys();
+      const primary = requiredIp ?? tokenIp ?? (await this.publicIp());
+      // Si l'API voit une autre IP que le portail (connexion à plusieurs sorties),
+      // la nouvelle clé autorise les deux, plus celles déjà connues.
+      const ips = [...new Set([primary, tokenIp, ...(requiredIp ? this.cachedIps() : [])])]
+        .filter((ip): ip is string => Boolean(ip))
+        .slice(0, MAX_IPS_PER_KEY);
+      let keys = await session.listKeys();
       const { keyName } = this.options;
 
-      const reusable = keys.find((key) => key.name === keyName && key.key && key.cidrRanges?.includes(ip));
+      const reusable = keys.find((key) => key.name === keyName && key.key && key.cidrRanges?.includes(primary));
       let key = reusable?.key;
+      let keyIps = reusable?.cidrRanges ?? ips;
       if (!key) {
+        // L'ancienne clé de l'app ne sert plus : on la retire pour ne pas encombrer le compte.
+        const previous = keys.find((candidate) => candidate.name === keyName && candidate.key === this.cached?.key);
+        if (previous) {
+          await session.revokeKey(previous.id);
+          keys = keys.filter((candidate) => candidate !== previous);
+        }
         if (keys.length >= MAX_KEYS_PER_ACCOUNT) {
-          // On ne supprime que nos propres anciennes clés (autre IP), jamais celles créées à la main.
-          const stale = keys.find((candidate) => candidate.name === keyName && !candidate.cidrRanges?.includes(ip));
+          // On ne supprime que nos propres anciennes clés, jamais celles créées à la main.
+          const stale = keys.find((candidate) => candidate.name === keyName);
           if (!stale) {
             throw new KeyUnavailableError(
               'Ton compte développeur a déjà 10 clés : supprimes-en une sur developer.brawlstars.com.',
@@ -321,15 +348,16 @@ export class AutoKeyProvider implements KeyProvider {
           await session.revokeKey(stale.id);
         }
         const stamp = new Date().toLocaleString('fr-FR');
-        key = await session.createKey(keyName, `Brawl Dashboard (${ip}, ${stamp})`, ip);
-        log.info(`Nouvelle clé API créée pour l’IP ${ip}.`);
+        key = await session.createKey(keyName, `Brawl Dashboard (${stamp})`, ips);
+        keyIps = ips;
+        log.info(`Nouvelle clé API créée pour ${ips.length > 1 ? 'les IP' : 'l’IP'} ${ips.join(', ')}.`);
       } else {
-        log.info(`Clé API existante réutilisée pour l’IP ${ip}.`);
+        log.info(`Clé API existante réutilisée pour l’IP ${primary}.`);
       }
 
-      this.cached = { key, ip, createdAt: now() };
+      this.cached = { key, ips: keyIps, createdAt: now() };
       this.options.kv.setJson('api_key', this.cached);
-      this.state = { mode: 'auto', state: 'ok', ip, message: null, updatedAt: now() };
+      this.state = { mode: 'auto', state: 'ok', ip: keyIps.join(', '), message: null, updatedAt: now() };
     } catch (error) {
       const message = errorMessage(error);
       log.error('Gestion automatique de la clé API', error);

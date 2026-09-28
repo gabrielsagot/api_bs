@@ -21,6 +21,8 @@ export interface ProfileSummary {
   star_powers: number;
   hyper_charges: number;
   gears: number;
+  ranked_elo: number | null;
+  ranked_rank: number | null;
 }
 
 export function summarizeProfile(profile: ApiPlayer): ProfileSummary {
@@ -41,6 +43,8 @@ export function summarizeProfile(profile: ApiPlayer): ProfileSummary {
     star_powers: sum((b) => b.starPowers),
     hyper_charges: sum((b) => b.hyperCharges),
     gears: sum((b) => b.gears),
+    ranked_elo: profile.rankedElo ?? null,
+    ranked_rank: profile.rankedRank ?? null,
   };
 }
 
@@ -58,6 +62,8 @@ const SNAPSHOT_FIELDS = [
   'star_powers',
   'hyper_charges',
   'gears',
+  'ranked_elo',
+  'ranked_rank',
 ] as const satisfies readonly (keyof ProfileSummary & keyof SnapshotRow)[];
 
 /** Met à jour le joueur ; n'ajoute un instantané que si quelque chose a changé. */

@@ -100,6 +100,10 @@ const MIGRATIONS: string[] = [
     updated_at TEXT NOT NULL
   );
   `,
+  /* v2 : points (ELO) et rang Ranked, fournis par le profil */ `
+  ALTER TABLE player_snapshots ADD COLUMN ranked_elo INTEGER;
+  ALTER TABLE player_snapshots ADD COLUMN ranked_rank INTEGER;
+  `,
 ];
 
 export class Db {
