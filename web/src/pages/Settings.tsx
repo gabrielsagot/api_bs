@@ -1,8 +1,9 @@
 import clsx from 'clsx';
-import { CircleAlert, CircleCheck, LoaderCircle, Trash2 } from 'lucide-react';
+import { CircleAlert, CircleCheck, LoaderCircle, Palette, Trash2 } from 'lucide-react';
 import { useState, type FormEvent, type ReactNode } from 'react';
+import { NAME_STYLES, guessNameStyle } from '../../../shared/nameStyles';
 import { normalizeTag } from '../../../shared/tags';
-import type { KeyStatusDto } from '../../../shared/types';
+import type { KeyStatusDto, PlayerListItem } from '../../../shared/types';
 import { PlayerIcon } from '../components/avatars';
 import { PlayerName } from '../components/bs';
 import { Button, Card, CardHeader, DocLink, ErrorState, LoadingState, PageHeader, Pill } from '../components/ui';
@@ -15,6 +16,7 @@ import {
   useRefresh,
   useRemovePlayer,
   useRenewKey,
+  useSetNameStyle,
   useSetPrimary,
   useStatus,
 } from '../lib/api';
@@ -87,6 +89,7 @@ export function SettingsPage() {
   const players = usePlayers();
   const remove = useRemovePlayer();
   const setPrimary = useSetPrimary();
+  const [styling, setStyling] = useState<string | null>(null);
   const refresh = useRefresh();
   const renew = useRenewKey();
   const now = useNow(10_000);
@@ -104,11 +107,12 @@ export function SettingsPage() {
           <CardHeader title="Joueurs suivis" subtitle="Tes comptes et ceux de tes potes. Le joueur principal s’ouvre par défaut." />
           <ul>
             {(players.data ?? []).map((player) => (
-              <li key={player.slug} className="flex items-center gap-3 border-t border-line py-3 first:border-t-0 first:pt-0">
+              <li key={player.slug} className="border-t border-line py-3 first:border-t-0 first:pt-0">
+               <div className="flex items-center gap-3">
                 <PlayerIcon iconId={player.iconId} name={player.name} size={36} />
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-2">
-                    <PlayerName name={player.name} color={player.nameColor} minContrast={4.5} className="truncate text-[15px] font-medium" />
+                    <PlayerName name={player.name} color={player.nameColor} nameStyle={player.nameStyle} minContrast={2.5} className="truncate text-[15px] font-medium" />
                     {player.isPrimary && <Pill tone="accent">Principal</Pill>}
                   </div>
                   <div className="truncate text-[13px] text-ink-2">
@@ -117,6 +121,15 @@ export function SettingsPage() {
                     {player.lastError && <span className="text-bad"> · {player.lastError}</span>}
                   </div>
                 </div>
+                <Button
+                  variant="ghost"
+                  icon={<Palette className="size-4" />}
+                  aria-expanded={styling === player.slug}
+                  aria-label="Couleur du pseudo"
+                  onClick={() => setStyling(styling === player.slug ? null : player.slug)}
+                >
+                  <span className="hidden sm:inline">Couleur du pseudo</span>
+                </Button>
                 {!player.isPrimary && (
                   <Button variant="ghost" onClick={() => setPrimary.mutate(player.slug)} className="hidden sm:inline-flex">
                     Définir principal
@@ -135,6 +148,8 @@ export function SettingsPage() {
                     <Trash2 className="size-4" />
                   </button>
                 )}
+               </div>
+               {styling === player.slug && <NameStylePicker player={player} />}
               </li>
             ))}
           </ul>
@@ -287,7 +302,7 @@ function BackupsCard({ demo }: { demo: boolean }) {
           <ul className="text-[14px]">
             {players.map((player) => (
               <li key={player.slug} className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1 border-t border-line py-2 first:border-t-0">
-                <PlayerName name={player.name} color={player.nameColor} minContrast={4.5} className="truncate font-medium" />
+                <PlayerName name={player.name} color={player.nameColor} nameStyle={player.nameStyle} minContrast={2.5} className="truncate font-medium" />
                 <span className="flex gap-3 text-[13px]">
                   <a href={exportUrl(player.slug, 'combats.csv')} className="font-medium text-accent hover:underline">
                     Combats
@@ -302,5 +317,60 @@ function BackupsCard({ demo }: { demo: boolean }) {
         </div>
       </div>
     </Card>
+  );
+}
+
+/**
+ * Choix de la couleur du pseudo, présenté comme l'écran « Choisir la couleur » du jeu
+ * (pseudo sur fond sombre). « Automatique » la déduit de la couleur renvoyée par l'API.
+ */
+function NameStylePicker({ player }: { player: PlayerListItem }) {
+  const save = useSetNameStyle();
+  const guessed = guessNameStyle(player.nameColor);
+  const chip = (id: string | null, label: string, stops: string[]) => {
+    const selected = (player.nameStyle ?? null) === id;
+    return (
+      <button
+        key={id ?? 'auto'}
+        type="button"
+        disabled={save.isPending}
+        onClick={() => save.mutate({ slug: player.slug, style: id })}
+        aria-pressed={selected}
+        className={clsx(
+          'flex min-w-0 flex-col items-start gap-1 rounded-xl bg-[#3b4057] px-3 py-2 text-left ring-2 transition-shadow',
+          selected ? 'ring-accent' : 'ring-transparent hover:ring-black/20',
+        )}
+      >
+        <span
+          className="max-w-full truncate text-[15px] font-bold"
+          style={
+            stops.length > 1
+              ? {
+                  backgroundImage: `linear-gradient(90deg, ${stops.join(', ')})`,
+                  WebkitBackgroundClip: 'text',
+                  backgroundClip: 'text',
+                  color: 'transparent',
+                  WebkitTextFillColor: 'transparent',
+                }
+              : { color: stops[0] }
+          }
+        >
+          {player.name}
+        </span>
+        <span className="max-w-full truncate text-[11px] text-white/70">{label}</span>
+      </button>
+    );
+  };
+  return (
+    <div className="mt-3 rounded-2xl bg-fill/70 p-3">
+      <p className="mb-3 text-[13px] text-ink-2">
+        L’API ne donne qu’une couleur, pas le dégradé choisi dans le jeu : si le pseudo n’a pas le bon dégradé, choisis-le
+        ici. Les styles sont dans le même ordre que l’écran « Choisir la couleur » du jeu.
+      </p>
+      <div className="mb-2 grid grid-cols-1 sm:grid-cols-3">
+        {chip(null, `Automatique${guessed ? ` · ${guessed.label}` : ''}`, guessed?.stops ?? ['#ffffff'])}
+      </div>
+      <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">{NAME_STYLES.map((style) => chip(style.id, style.label, style.stops))}</div>
+    </div>
   );
 }

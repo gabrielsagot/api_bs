@@ -2,6 +2,7 @@ import os from 'node:os';
 import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
 import QRCode from 'qrcode';
 import type { BattleCategory } from '../shared/labels';
+import { nameStyleById } from '../shared/nameStyles';
 import { normalizeTag } from '../shared/tags';
 import type { BattleFilters, CreateGoalInput, GoalKind, RankedQueue, StatusDto } from '../shared/types';
 import { BrawlStarsError } from './brawlstars/client';
@@ -19,6 +20,7 @@ import {
   listPlayers,
   loadBattles,
   loadSnapshots,
+  setNameStyle,
   setPrimaryPlayer,
   toListItem,
   type PlayerRow,
@@ -192,6 +194,13 @@ export function registerRoutes(app: FastifyInstance, deps: RouteDeps): void {
 
   app.post('/api/players/:tag/primary', async (request: Req) => {
     setPrimaryPlayer(db, player(request).tag);
+    return { ok: true };
+  });
+
+  app.put('/api/players/:tag/name-style', async (request: Req) => {
+    const style = (request.body as { style?: string | null } | null)?.style ?? null;
+    if (style !== null && !nameStyleById(style)) throw new HttpError(400, 'Style de pseudo inconnu.');
+    setNameStyle(db, player(request).tag, style);
     return { ok: true };
   });
 

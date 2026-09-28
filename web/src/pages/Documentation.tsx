@@ -8,7 +8,7 @@ import { useStatus } from '../lib/api';
 // Documentation intégrée. À TENIR À JOUR : toute fonctionnalité ajoutée, modifiée
 // ou retirée dans l'app doit être reflétée ici (voir CLAUDE.md).
 
-const DOC_VERSION = '1.2.0';
+const DOC_VERSION = '1.2.1';
 
 interface Section {
   id: string;
@@ -189,9 +189,10 @@ const SECTIONS: Section[] = [
         <H3>Repères visuels du jeu</H3>
         <List>
           <li>
-            <strong>Pseudo</strong> : affiché dans la couleur choisie dans Brawl Stars (fournie par l’API). Les couleurs très
-            claires sont légèrement assombries pour rester lisibles sur fond blanc ; un pseudo blanc (couleur par défaut)
-            s’affiche en noir.
+            <strong>Pseudo</strong> : affiché avec le dégradé choisi dans Brawl Stars. L’API ne renvoie qu’une couleur
+            (ex. 0xfff05637) : le dégradé est déduit d’elle (le plus proche des 12 styles du jeu), ou choisi à la main dans
+            les Réglages (« Couleur du pseudo »). Les teintes sont légèrement assombries si besoin pour rester lisibles sur
+            fond blanc ; un pseudo blanc (couleur par défaut) s’affiche en noir.
           </li>
           <li>
             <strong>Rangs Ranked</strong> : chaque rang est accompagné de son emblème officiel (Bronze I … Pro).
@@ -200,9 +201,9 @@ const SECTIONS: Section[] = [
             <strong>Modes de jeu</strong> : icône officielle du mode ; dans la Rotation, le nom du mode prend sa couleur du jeu.
           </li>
           <li>
-            <strong>Gloire</strong> : palier traduit (« Gloire météorique I ») avec une pastille de couleur. L’API ne fournit
-            pas de couleur pour la gloire : chaque palier a une couleur choisie d’après son thème. Survole le palier pour voir
-            tes points de gloire.
+            <strong>Gloire</strong> : palier traduit (« Gloire météorique I ») avec une pastille aux couleurs de son emblème
+            dans le jeu : Terre (bleu et vert), Lune (gris), Mars (rouge), Saturne (orange), Soleil (jaune), Météore
+            (sphère sombre, contour de flammes, texte rouge)… Survole le palier pour voir tes points de gloire.
           </li>
           <li>
             <strong>Rareté des brawlers</strong> : pastille aux couleurs du jeu (vert rare, bleu super rare, violet épique,
@@ -503,7 +504,8 @@ const SECTIONS: Section[] = [
       <List>
         <li>
           <strong>Joueurs suivis</strong> : ajout par tag (le O est corrigé en 0 automatiquement), suppression (efface son
-          historique), choix du joueur principal (ouvert par défaut).
+          historique), choix du joueur principal (ouvert par défaut) et <strong>couleur du pseudo</strong> : les 12 styles
+          de l’écran « Choisir la couleur » du jeu, dans le même ordre, ou « Automatique ».
         </li>
         <li>
           <strong>Clé API</strong> : mode, état, IP autorisées, dernier message, bouton pour recréer la clé (mode
@@ -1009,6 +1011,11 @@ const SECTIONS: Section[] = [
     keywords: 'versions changelog nouveautés',
     body: (
       <>
+        <H3>1.2.1</H3>
+        <List>
+          <li>Pseudo avec les vrais dégradés du jeu (12 styles), déduits de la couleur de l’API ou choisis dans les Réglages.</li>
+          <li>Gloire aux couleurs des emblèmes du jeu (Terre, Lune, Mars, Saturne, Soleil, Météore…).</li>
+        </List>
         <H3>1.2.0</H3>
         <List>
           <li>Pseudo affiché dans sa couleur Brawl Stars (barre latérale, Accueil, Comparer, Réglages).</li>

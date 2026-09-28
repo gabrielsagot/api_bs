@@ -106,6 +106,10 @@ export const useAddPlayer = () =>
   useAction((tag: string) => api<PlayerListItem>('/players', { method: 'POST', body: JSON.stringify({ tag }) }));
 export const useRemovePlayer = () => useAction((slug: string) => api(`/players/${slug}`, { method: 'DELETE' }));
 export const useSetPrimary = () => useAction((slug: string) => api(`/players/${slug}/primary`, { method: 'POST' }));
+export const useSetNameStyle = () =>
+  useAction(({ slug, style }: { slug: string; style: string | null }) =>
+    api(`/players/${slug}/name-style`, { method: 'PUT', body: JSON.stringify({ style }) }),
+  );
 export const useCreateGoal = (slug: string) =>
   useAction((input: CreateGoalInput) => api<GoalDto>(`/players/${slug}/goals`, { method: 'POST', body: JSON.stringify(input) }));
 export const useDeleteGoal = () => useAction((id: number) => api(`/goals/${id}`, { method: 'DELETE' }));

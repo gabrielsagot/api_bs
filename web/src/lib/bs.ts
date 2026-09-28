@@ -1,4 +1,6 @@
+import type { CSSProperties } from 'react';
 import { isKnownTier, parseFame, type FameTier } from '../../../shared/labels';
+import { apiColorToHex, guessNameStyle, nameStyleById } from '../../../shared/nameStyles';
 
 // Repères visuels de Brawl Stars : couleur du pseudo, rangs, gloire, modes, raretés.
 // Les couleurs du jeu sont souvent très claires (pensées pour un fond sombre) : pour
@@ -48,15 +50,38 @@ export function readableColor(hex: string, minContrast = 3, background = '#fffff
 }
 
 /**
- * Couleur du pseudo choisie dans le jeu (« 0xfff05637 » → « #f05637 »), rendue lisible.
- * Le blanc et les gris (pseudo par défaut) renvoient null : on garde la couleur du texte.
+ * Rendu du pseudo : le style choisi dans les Réglages, sinon celui deviné d'après la
+ * couleur de l'API. Chaque teinte est juste assez assombrie pour rester lisible sur
+ * fond blanc. Le blanc (pseudo par défaut) renvoie null : couleur du texte normale.
  */
-export function nameColor(apiColor: string | null | undefined, minContrast = 3): string | null {
-  const match = /^(?:0x|#)?(?:[0-9a-f]{2})?([0-9a-f]{6})$/i.exec(apiColor?.trim() ?? '');
-  if (!match) return null;
-  const hex = `#${match[1].toLowerCase()}`;
-  if (saturation(hex) < 0.15) return null;
-  return readableColor(hex, minContrast);
+export function nameStyleCss(
+  apiColor: string | null | undefined,
+  styleId: string | null | undefined,
+  minContrast = 2,
+): CSSProperties | null {
+  const style = nameStyleById(styleId) ?? guessNameStyle(apiColor);
+  if (style?.id === 'blanc') return null;
+  if (!style) {
+    // Couleur hors des styles connus : on l'affiche telle quelle (si elle n'est pas grise).
+    const hex = apiColorToHex(apiColor);
+    return hex && saturation(hex) >= 0.15 ? { color: readableColor(hex, Math.max(3, minContrast)) } : null;
+  }
+  const stops = style.stops.map((stop) => readableColor(stop, minContrast));
+  return {
+    backgroundImage: `linear-gradient(90deg, ${stops.join(', ')})`,
+    WebkitBackgroundClip: 'text',
+    backgroundClip: 'text',
+    color: 'transparent',
+    WebkitTextFillColor: 'transparent',
+  };
+}
+
+/** Couleur unie du pseudo (pastilles, légendes) : teinte centrale du style. */
+export function nameSolidColor(apiColor: string | null | undefined, styleId: string | null | undefined): string | null {
+  const style = nameStyleById(styleId) ?? guessNameStyle(apiColor);
+  if (style?.id === 'blanc') return null;
+  const hex = style ? style.stops[Math.floor(style.stops.length / 2)] : apiColorToHex(apiColor);
+  return hex ? readableColor(hex, 3) : null;
 }
 
 // ── Rangs Ranked ──────────────────────────────────────────────
@@ -76,21 +101,24 @@ export function tierIconId(tier: number | null | undefined): number | null {
 
 // ── Gloire ────────────────────────────────────────────────────
 
-/** Une couleur par palier, d'après son thème (l'API ne fournit pas de couleur). */
-const FAME_COLORS: Record<FameTier, string> = {
-  GLOBAL: '#2f7de1',
-  LUNAR: '#7b86a8',
-  MARTIAN: '#d9542b',
-  SATURNIAN: '#c08a1e',
-  SOLAR: '#f0a000',
-  METEORIC: '#e8603c',
-  ALIEN: '#3fae3a',
-  'STARR FORCE': '#b640e0',
+/**
+ * Couleurs des emblèmes de gloire du jeu (Terre, Lune, Mars, Saturne, Soleil,
+ * Météore…) : remplissage, contour et couleur du texte.
+ */
+const FAME_STYLES: Record<FameTier, { fill: string; ring: string; text: string }> = {
+  GLOBAL: { fill: '#2e8fe0', ring: '#3cc56b', text: '#2a9d55' },
+  LUNAR: { fill: '#d4d7dd', ring: '#9aa0aa', text: '#6f7580' },
+  MARTIAN: { fill: '#e8453c', ring: '#b3261e', text: '#d32f2f' },
+  SATURNIAN: { fill: '#f39a2e', ring: '#c4671a', text: '#d9791c' },
+  SOLAR: { fill: '#f8cb1c', ring: '#e3a012', text: '#c98a00' },
+  METEORIC: { fill: '#2b2a2e', ring: '#f2661d', text: '#e2404f' },
+  ALIEN: { fill: '#8fdc2c', ring: '#4a9e1f', text: '#4a9e1f' },
+  'STARR FORCE': { fill: '#b640e0', ring: '#f5c518', text: '#b640e0' },
 };
 
-export function fameColor(name: string | null | undefined): string | null {
+export function fameStyle(name: string | null | undefined): { fill: string; ring: string; text: string } | null {
   const { tier } = parseFame(name);
-  return tier ? FAME_COLORS[tier] : null;
+  return tier ? FAME_STYLES[tier] : null;
 }
 
 // ── Modes de jeu ──────────────────────────────────────────────

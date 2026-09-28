@@ -10,6 +10,7 @@ export interface PlayerRow {
   tag: string;
   name: string;
   name_color: string | null;
+  name_style: string | null;
   icon_id: number | null;
   club_tag: string | null;
   club_name: string | null;
@@ -106,6 +107,11 @@ export function deletePlayer(db: Db, tag: string): void {
   });
 }
 
+/** Style de pseudo choisi à la main (null : deviné d'après la couleur de l'API). */
+export function setNameStyle(db: Db, tag: string, style: string | null): void {
+  db.run('UPDATE players SET name_style = ? WHERE tag = ?', [style, tag]);
+}
+
 export function setPrimaryPlayer(db: Db, tag: string): void {
   db.transaction(() => {
     db.run('UPDATE players SET is_primary = 0');
@@ -129,6 +135,7 @@ export function toListItem(row: PlayerRow): PlayerListItem {
     slug: tagSlug(row.tag),
     name: row.name || row.tag,
     nameColor: row.name_color,
+    nameStyle: row.name_style ?? null,
     iconId: row.icon_id,
     isPrimary: row.is_primary === 1,
     colorSlot: row.color_slot,
