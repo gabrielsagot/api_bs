@@ -7,13 +7,32 @@ import { NextTierProgress } from '../components/ranked';
 import { streakLabel } from './Home';
 import { Button, Card, CardHeader, DocLink, EmptyState, ErrorState, LoadingState, PageHeader, Refetching, StatTile } from '../components/ui';
 import { useLiveSession, useRefresh, useStatus } from '../lib/api';
-import { fmtDuration, fmtInt, fmtRelative, fmtSigned, fmtTime } from '../lib/format';
+import type { WinLoss } from '../../../shared/types';
+import { fmtDuration, fmtInt, fmtPct, fmtRelative, fmtSigned, fmtTime, plural } from '../lib/format';
 import { useNow, usePlayerSlug } from '../lib/hooks';
 
 /**
  * Session en direct : l'écran à garder sur le téléphone pendant qu'on joue.
  * Il se rafraîchit tout seul ; la collecte passe à toutes les 2 min dès qu'une partie est détectée.
  */
+/** « 3 sur 4 » : victoires en grand, total en plus discret. */
+function WonOf({ wins, total }: { wins: number; total: number }) {
+  return (
+    <>
+      {fmtInt(wins)}
+      <span className="text-[0.6em] font-medium text-ink-3"> sur {fmtInt(total)}</span>
+    </>
+  );
+}
+
+/** Sous-titre des sets : défaites, taux de sets gagnés, sets en cours. */
+function setsSub(sets: WinLoss, ongoing: number): string {
+  if (!sets.games) return ongoing ? 'Set en cours, pas encore terminé' : 'Aucun set Ranked terminé';
+  const parts = [plural(sets.losses, 'perdu', 'perdus'), `${fmtPct(sets.winRate)} gagnés`];
+  if (ongoing) parts.push(plural(ongoing, 'en cours', 'en cours'));
+  return parts.join(' · ');
+}
+
 export function LivePage() {
   const slug = usePlayerSlug();
   const now = useNow(10_000);
@@ -25,6 +44,7 @@ export function LivePage() {
   if (error || !data) return <ErrorState error={error} />;
 
   const streak = streakLabel(data.streak, data.sets.games ? 'set' : 'manche');
+  const ongoingSets = data.recentSets.filter((set) => set.outcome === 'ongoing').length;
   const running = refresh.isPending || status?.poller.running;
 
   return (
@@ -83,15 +103,30 @@ export function LivePage() {
       </Card>
 
       <div className="mt-4 grid grid-cols-2 gap-4 md:grid-cols-4">
-        <StatTile label="Sets" value={`${data.sets.wins} – ${data.sets.losses}`} sub={data.sets.games ? `${data.sets.games} terminés` : 'aucun set'} />
-        <StatTile label="Manches Ranked" value={`${data.ranked.wins} – ${data.ranked.losses}`} sub={`${data.ranked.games} jouées`} />
+        <StatTile
+          label="Sets gagnés"
+          value={data.sets.games ? <WonOf wins={data.sets.wins} total={data.sets.games} /> : '—'}
+          sub={setsSub(data.sets, ongoingSets)}
+        />
+        <StatTile
+          label="Manches gagnées"
+          value={data.ranked.games ? <WonOf wins={data.ranked.wins} total={data.ranked.games} /> : '—'}
+          sub={
+            data.ranked.games
+              ? `${plural(data.ranked.losses, 'perdue', 'perdues')} · ${fmtPct(data.ranked.winRate)} gagnées`
+              : 'Aucune manche Ranked'
+          }
+        />
         <StatTile label="Série" value={streak.value} sub={streak.sub} />
         <StatTile label="Trophées" value={fmtSigned(data.trophyNet)} sub={`${data.games.games} parties au total`} />
       </div>
 
       <div className="mt-4 grid gap-4 lg:grid-cols-12">
         <Card className="lg:col-span-7">
-          <CardHeader title="Sets de la session" subtitle="Avec les points gagnés ou perdus quand ils sont mesurés" />
+          <CardHeader
+            title="Sets Ranked de la session"
+            subtitle="Un set se joue en 3 manches maximum : le premier à 2 manches gagnées l’emporte. Points gagnés ou perdus quand ils sont mesurés."
+          />
           {data.recentSets.length ? (
             <ul className="-my-1 divide-y divide-line">
               {data.recentSets.map((set) => (
