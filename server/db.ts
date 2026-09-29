@@ -107,6 +107,37 @@ const MIGRATIONS: string[] = [
   /* v3 : style de pseudo choisi à la main (dégradé du jeu), sinon deviné */ `
   ALTER TABLE players ADD COLUMN name_style TEXT;
   `,
+  /* v4 : parties classées de la communauté (onglet Draft) et joueurs à explorer */ `
+  CREATE TABLE meta_matches (
+    id          INTEGER PRIMARY KEY,
+    match_key   TEXT NOT NULL UNIQUE,
+    battle_time TEXT NOT NULL,
+    type        TEXT NOT NULL,
+    mode        TEXT NOT NULL,
+    map         TEXT NOT NULL,
+    event_id    INTEGER,
+    team_a      TEXT NOT NULL,
+    team_b      TEXT NOT NULL,
+    winner      INTEGER,
+    min_tier    INTEGER,
+    avg_tier    REAL,
+    duration    INTEGER
+  );
+  CREATE INDEX meta_matches_mode_time ON meta_matches(mode, battle_time);
+  CREATE INDEX meta_matches_time ON meta_matches(battle_time);
+
+  CREATE TABLE meta_players (
+    tag             TEXT PRIMARY KEY,
+    tier            INTEGER,
+    source          TEXT NOT NULL,
+    discovered_at   TEXT NOT NULL,
+    last_crawled_at TEXT,
+    next_crawl_at   TEXT NOT NULL,
+    crawls          INTEGER NOT NULL DEFAULT 0,
+    matches_found   INTEGER NOT NULL DEFAULT 0
+  );
+  CREATE INDEX meta_players_next ON meta_players(next_crawl_at);
+  `,
 ];
 
 export class Db {

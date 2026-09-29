@@ -1,5 +1,6 @@
 import fs from 'node:fs';
 import path from 'node:path';
+import { DatabaseSync } from 'node:sqlite';
 import type { BackupDto } from '../shared/types';
 import type { Db } from './db';
 import { log } from './log';
@@ -30,6 +31,14 @@ export function createBackup(db: Db, dir: string, now = new Date()): BackupDto {
   const stamp = now.toISOString().slice(0, 19).replace(/[:T]/g, '-');
   const file = path.join(dir, `brawl-${stamp}.sqlite`);
   db.run('VACUUM INTO ?', [file]);
+  // Les parties de la communauté (Draft) se reconstituent seules en quelques jours :
+  // inutile d'alourdir chaque sauvegarde avec elles.
+  const copy = new DatabaseSync(file);
+  try {
+    copy.exec('DELETE FROM meta_matches; DELETE FROM meta_players; VACUUM;');
+  } finally {
+    copy.close();
+  }
   for (const old of listBackups(dir).slice(KEEP)) fs.rmSync(path.join(dir, old.name), { force: true });
   log.info(`Sauvegarde créée : ${path.basename(file)}`);
   return listBackups(dir).find((b) => b.name === path.basename(file))!;

@@ -585,3 +585,84 @@ export interface CompareResponse {
   players: ComparePlayerDto[];
   brawlers: { id: number; name: string; values: (number | null)[] }[];
 }
+
+// ── Draft (Ranked) ────────────────────────────────────────────
+
+export interface DraftMapDto {
+  map: string;
+  mode: string;
+  eventId: number | null;
+  /** Manches classées collectées sur cette map (30 derniers jours). */
+  matches: number;
+}
+
+export interface DraftCrawlerDto {
+  enabled: boolean;
+  running: boolean;
+  intervalMs: number;
+  lastRunAt: string | null;
+  lastError: string | null;
+  queue: number;
+  due: number;
+  matches: number;
+  matches24h: number;
+}
+
+export interface DraftBrawlerDto {
+  id: number;
+  name: string;
+  rarity: string | null;
+  owned: boolean;
+  power: number | null;
+}
+
+export interface DraftOverviewResponse {
+  maps: DraftMapDto[];
+  crawler: DraftCrawlerDto | null;
+  brawlers: DraftBrawlerDto[];
+  minTier: number;
+}
+
+export interface DraftReasonDto {
+  kind: 'map' | 'synergy' | 'counter' | 'risk' | 'mastery';
+  brawlerId?: number;
+  brawlerName?: string;
+  /** Effet sur les chances, en points de %. */
+  points: number;
+  rate?: number;
+  games?: number;
+}
+
+export interface DraftPickDto {
+  brawlerId: number;
+  name: string;
+  /** Chances estimées (0-1), indicatives. */
+  estimate: number;
+  mapWinRate: number;
+  mapGames: number;
+  owned: boolean;
+  power: number | null;
+  reasons: DraftReasonDto[];
+}
+
+export interface DraftBanDto {
+  brawlerId: number;
+  name: string;
+  mapWinRate: number;
+  presence: number;
+  mapGames: number;
+}
+
+export interface DraftRecommendResponse {
+  map: string;
+  mode: string;
+  sample: {
+    mapMatches: number;
+    modeMatches: number;
+    /** Rang minimal des manches retenues (null : toutes, faute de données suffisantes). */
+    minTier: number | null;
+    days: number;
+  };
+  picks: DraftPickDto[];
+  bans: DraftBanDto[];
+}

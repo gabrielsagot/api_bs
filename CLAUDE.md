@@ -24,6 +24,8 @@ identifiants de section cohérents.
 
 ## Architecture
 
+- `server/meta/` : collecte des parties classées de la communauté pour le Draft (`crawler.ts`, `matches.ts`) ;
+  moteur de recommandation pur et testé dans `server/stats/draft.ts`.
 - `server/` : Fastify, SQLite intégré (`node:sqlite`), collecte (`poller.ts`), clé API (`brawlstars/keys.ts`),
   statistiques pures et testées (`stats/`), assemblage des réponses (`views.ts`), routes (`routes.ts`).
 - `shared/` : types (contrat serveur ↔ interface) et libellés français.

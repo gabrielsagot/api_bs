@@ -15,6 +15,10 @@ Il tourne sur ton Mac et s'ouvre aussi sur ton téléphone, sur le même Wi-Fi.
 - **En direct** : l'écran à garder sur le téléphone pendant que tu joues (points gagnés sur la session, sets, série).
 - **Ranked** : sets BO3 reconstitués avec les **points gagnés ou perdus par set**, points nets par brawler, map et mode,
   brawlers adverses, **toi avec ou sans chaque coéquipier** et vos meilleurs duos, meilleurs picks par map.
+- **Draft** : simulateur de draft Ranked. Tu entres la map, les bans et les picks au fil du draft (ordre 1-2-2-1) et
+  il classe les meilleurs choix pour ton pick : force du brawler sur la map, synergie avec tes alliés, contres face aux
+  ennemis, risque d'être contré par les picks adverses restants, et ta maîtrise. Basé sur les parties classées de haut
+  niveau que le dashboard collecte en continu.
 - **Trophées** : courbe dans le temps, variation jour par jour, **planificateur de prestige**, séries de victoires.
 - **Combats** : historique complet et filtrable (type, mode, brawler, map), stats par mode, map, brawler et
   adversaire, sessions de jeu.
@@ -138,6 +142,11 @@ Quand le Mac est en veille, la collecte est en pause. Pour une collecte continue
   (500 points par rang). Toutes les méthodes de calcul sont détaillées dans la page **Documentation** de l'app.
 - **Piège de l'API** : le type de combat `ranked` désigne en réalité les parties de **trophées**. Le mode Ranked
   apparaît sous `soloRanked` et `teamRanked`. Le dashboard fait la différence pour toi.
+- **Draft et collecte communautaire** : l'API ne fournit aucune statistique globale. Le dashboard lit donc en continu
+  (une requête toutes les 4 s) les journaux de joueurs de haut rang, en partant des classements mondial et français,
+  et garde leurs manches de Ranked (map, les 6 brawlers, le gagnant, le rang des joueurs). Comptez quelques jours de
+  collecte avant des conseils fiables. L'API ne dit ni ce qui est banni ni l'ordre des picks : les bans conseillés
+  sont estimés. Réglages : `META_CRAWL_SECONDS` (0 pour désactiver), `META_MIN_TIER`, `META_SEED_RANKINGS`.
 - **Images** : l'API officielle n'en fournit aucune. Les portraits viennent du CDN communautaire Brawlify et sont mis en
   cache dans `data/img`. La rareté des brawlers vient aussi de Brawlify, et le dashboard fonctionne sans.
 - **Coûts d'amélioration** : les prix (niveaux, gadgets, star powers, hypercharges) sont dans

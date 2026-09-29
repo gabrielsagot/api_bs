@@ -10,6 +10,7 @@ import {
   LoaderCircle,
   Medal,
   Radio,
+  Crosshair,
   RefreshCw,
   Settings,
   Swords,
@@ -39,6 +40,7 @@ const NAV: NavItem[] = [
   { to: '', label: 'Accueil', icon: House, scoped: true },
   { to: 'direct', label: 'En direct', icon: Radio, scoped: true },
   { to: 'ranked', label: 'Ranked', icon: Medal, scoped: true },
+  { to: 'draft', label: 'Draft', icon: Crosshair, scoped: true },
   { to: 'trophees', label: 'Trophées', icon: Trophy, scoped: true },
   { to: 'combats', label: 'Combats', icon: Swords, scoped: true },
   { to: 'brawlers', label: 'Brawlers', icon: LayoutGrid, scoped: true },
@@ -49,7 +51,7 @@ const NAV: NavItem[] = [
   { to: '/reglages', label: 'Réglages', icon: Settings, scoped: false },
 ];
 
-const MOBILE_TABS = ['', 'direct', 'ranked', 'brawlers'];
+const MOBILE_TABS = ['', 'direct', 'ranked', 'draft'];
 
 function hrefFor(item: NavItem, slug: string | undefined): string {
   if (!item.scoped) return item.to;

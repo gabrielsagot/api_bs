@@ -8,6 +8,8 @@ import { errorMessage, log } from './log';
 import { listPlayers } from './repo';
 import { backupIfDue } from './backup';
 import { refreshGoalAchievements } from './stats/goals';
+import { discoverPlayers } from './meta/crawler';
+import { recordMetaMatches } from './meta/matches';
 
 // Collecte en tâche de fond. L'API ne renvoie que les 25 derniers combats :
 // on interroge souvent pendant une session de jeu, plus rarement au repos.
@@ -74,6 +76,9 @@ export class Poller {
     const now = new Date().toISOString();
     const inserted = db.transaction(() => {
       ingestProfile(db, tag, profile, now);
+      // Tes manches classées nourrissent aussi les statistiques du Draft.
+      const meta = recordMetaMatches(db, tag, battleLog.items ?? []);
+      discoverPlayers(db, meta.participants, this.deps.config.metaMinTier);
       return ingestBattleLog(db, tag, battleLog.items ?? []).inserted;
     });
     refreshGoalAchievements(db, tag, now);
