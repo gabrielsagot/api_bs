@@ -16,6 +16,8 @@ import { Db, KvStore } from './db';
 import { seedDemo } from './demo';
 import { ImageCache } from './images';
 import { errorMessage, log } from './log';
+import { MetaCrawler } from './meta/crawler';
+import { backfillFromBattles } from './meta/matches';
 import { Poller } from './poller';
 import { findPlayer, insertPlayer } from './repo';
 import { lanUrls, registerRoutes } from './routes';
@@ -55,11 +57,23 @@ const catalog = new CatalogService(kv, client);
 const rotation = new RotationService(kv, client);
 const backupDir = path.join(config.dataDir, 'backups');
 const poller = client ? new Poller({ db, client, catalog, rotation, config, backupDir }) : null;
+// Tes manches classées déjà enregistrées alimentent tout de suite le Draft.
+if (!config.demo) {
+  const backfilled = backfillFromBattles(db);
+  if (backfilled) log.info(`Draft : ${backfilled} manche${backfilled > 1 ? 's' : ''} classée${backfilled > 1 ? 's' : ''} reprise${backfilled > 1 ? 's' : ''} de ton historique.`);
+}
+const metaCrawler = client
+  ? new MetaCrawler(db, kv, client, {
+      intervalMs: config.metaCrawlSeconds * 1000,
+      minTier: config.metaMinTier,
+      seedRankings: config.metaSeedRankings,
+    })
+  : null;
 const images = new ImageCache(path.join(config.dataDir, 'img'));
 
 // ── Serveur HTTP ──
 const app = Fastify({ logger: false });
-registerRoutes(app, { db, catalog, rotation, config, keys, poller, images, version, backupDir });
+registerRoutes(app, { db, catalog, rotation, config, keys, poller, images, version, backupDir, metaCrawler });
 
 const hasWebBuild = fs.existsSync(path.join(config.webDistDir, 'index.html'));
 if (hasWebBuild) {
@@ -120,7 +134,10 @@ console.log(
 );
 
 // Sans clé, inutile de lancer la collecte : le dashboard affiche la marche à suivre.
-if (keys.mode !== 'none') poller?.start();
+if (keys.mode !== 'none') {
+  poller?.start();
+  metaCrawler?.start();
+}
 
 let stopping = false;
 async function shutdown(signal: string): Promise<void> {
@@ -128,6 +145,7 @@ async function shutdown(signal: string): Promise<void> {
   stopping = true;
   log.info(`Arrêt (${signal})…`);
   poller?.stop();
+  metaCrawler?.stop();
   try {
     await app.close();
   } catch (error) {

@@ -91,6 +91,14 @@ export class BrawlStarsClient {
     return data.items ?? [];
   }
 
+  /** Classement des joueurs (« global » ou code pays, ex. « FR »), 200 au plus. */
+  async getRankings(ranking: string, limit = 200): Promise<{ tag: string; name?: string }[]> {
+    const data = await this.request<{ items?: { tag: string; name?: string }[] }>(
+      `/rankings/${encodeURIComponent(ranking)}/players?limit=${limit}`,
+    );
+    return data.items ?? [];
+  }
+
   async getEventRotation(): Promise<ApiEventSlot[]> {
     const data = await this.request<ApiEventSlot[] | { items?: ApiEventSlot[] }>('/events/rotation');
     return Array.isArray(data) ? data : (data.items ?? []);

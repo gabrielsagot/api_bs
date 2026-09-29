@@ -7,6 +7,8 @@ import type {
   CompareResponse,
   CreateGoalInput,
   BackupDto,
+  DraftOverviewResponse,
+  DraftRecommendResponse,
   GoalDto,
   LiveSessionResponse,
   OverviewResponse,
@@ -66,6 +68,18 @@ function usePlayerData<T>(slug: string, path: string, params: Record<string, str
 }
 
 export const useOverview = (slug: string) => usePlayerData<OverviewResponse>(slug, '/overview');
+export const useDraft = (slug: string) => usePlayerData<DraftOverviewResponse>(slug, '/draft');
+/** Recommandations du Draft ; `params` null tant qu'aucune map n'est choisie. */
+export const useDraftRecommend = (slug: string, params: Record<string, string | number> | null) => {
+  const query = toQuery(params ?? {});
+  return useQuery({
+    queryKey: ['player', slug, '/draft/recommend', query],
+    queryFn: () => api<DraftRecommendResponse>(`/players/${slug}/draft/recommend${query}`),
+    enabled: params !== null,
+    placeholderData: keepPreviousData,
+    staleTime: 60_000,
+  });
+};
 export const useRanked = (slug: string, period: string, queue: string) =>
   usePlayerData<RankedResponse>(slug, '/ranked', { period, queue });
 export const useTrophies = (slug: string, period: string) => usePlayerData<TrophiesResponse>(slug, '/trophies', { period });

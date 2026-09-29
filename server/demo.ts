@@ -491,6 +491,61 @@ function simulate(db: Db, options: SimOptions, now: number): void {
   db.run('UPDATE players SET last_polled_at = ? WHERE tag = ?', [new Date(now - 60_000).toISOString(), sim.tag]);
 }
 
+/**
+ * Parties classées « de la communauté » pour l'onglet Draft : chaque brawler a une
+ * force cachée par map, quelques duos s'entendent bien et quelques brawlers en
+ * contrent d'autres. Les manches sont tirées au sort selon ces règles, pour que le
+ * moteur du Draft ait des tendances réalistes à retrouver.
+ */
+function seedDemoMeta(db: Db, rand: Rand, now: number): void {
+  const ids = BRAWLERS.map(([id]) => id);
+  const gauss = () => (rand() + rand() + rand() - 1.5) * 0.9;
+  const base = new Map(ids.map((id) => [id, gauss() * 0.5]));
+  const strength = new Map<string, number>();
+  for (const [, map] of RANKED_POOL) for (const id of ids) strength.set(`${map}|${id}`, (base.get(id) ?? 0) + gauss() * 0.45);
+  const synergy = new Map<string, number>();
+  const counters = new Map<string, number>();
+  for (let i = 0; i < 160; i++) {
+    const [a, b] = [pick(rand, ids), pick(rand, ids)];
+    if (a !== b) synergy.set(a < b ? `${a}+${b}` : `${b}+${a}`, (rand() - 0.35) * 0.9);
+  }
+  for (let i = 0; i < 260; i++) {
+    const [a, b] = [pick(rand, ids), pick(rand, ids)];
+    if (a !== b) counters.set(`${a}>${b}`, rand() * 0.9);
+  }
+  const syn = (a: number, b: number) => synergy.get(a < b ? `${a}+${b}` : `${b}+${a}`) ?? 0;
+  const cnt = (a: number, b: number) => (counters.get(`${a}>${b}`) ?? 0) - (counters.get(`${b}>${a}`) ?? 0);
+
+  const insert = `INSERT OR IGNORE INTO meta_matches
+    (match_key, battle_time, type, mode, map, event_id, team_a, team_b, winner, min_tier, avg_tier, duration)
+    VALUES (?, ?, ?, ?, ?, NULL, ?, ?, ?, ?, ?, ?)`;
+  for (let n = 0; n < 14_000; n++) {
+    const [mode, map] = pick(rand, RANKED_POOL);
+    // Les brawlers forts sur la map sont plus souvent choisis (comme en vrai).
+    const weights = ids.map((id) => Math.exp(1.6 * (strength.get(`${map}|${id}`) ?? 0)));
+    const total = weights.reduce((sum, w) => sum + w, 0);
+    const chosen = new Set<number>();
+    while (chosen.size < 6) {
+      let r = rand() * total;
+      let index = 0;
+      while (r > weights[index]) r -= weights[index++];
+      chosen.add(ids[Math.min(index, ids.length - 1)]);
+    }
+    const six = [...chosen];
+    const teamA = six.slice(0, 3).sort((x, y) => x - y);
+    const teamB = six.slice(3).sort((x, y) => x - y);
+    const power = (team: number[], enemies: number[]) =>
+      team.reduce((sum, id) => sum + (strength.get(`${map}|${id}`) ?? 0), 0) +
+      syn(team[0], team[1]) + syn(team[0], team[2]) + syn(team[1], team[2]) +
+      team.reduce((sum, id) => sum + enemies.reduce((acc, e) => acc + cnt(id, e), 0), 0) / 2;
+    const edge = power(teamA, teamB) - power(teamB, teamA);
+    const winner = rand() < 1 / (1 + Math.exp(-edge)) ? 0 : 1;
+    const time = new Date(now - rand() * 30 * DAY_MS).toISOString();
+    const tier = between(rand, 13, 19);
+    db.run(insert, [`demo-${n}`, time, rand() < 0.8 ? 'soloRanked' : 'teamRanked', mode, map, JSON.stringify(teamA), JSON.stringify(teamB), winner, tier, tier + rand(), between(rand, 70, 180)]);
+  }
+}
+
 export function seedDemo(db: Db, kv: KvStore, now = Date.now()): void {
   const rand = mulberry32(20250928);
   const catalog = BRAWLERS.map(([id, name, rarity], index) => catalogFor(index, id, name, rarity));
@@ -553,6 +608,8 @@ export function seedDemo(db: Db, kv: KvStore, now = Date.now()): void {
       );
     }
   });
+
+  db.transaction(() => seedDemoMeta(db, rand, now));
 
   // Rotation fictive : maps que la démo a beaucoup jouées, pour montrer les recommandations.
   const slots: RotationSlot[] = [

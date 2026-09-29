@@ -17,6 +17,12 @@ export interface AppConfig {
   initialTags: string[];
   pollActiveSeconds: number;
   pollIdleSeconds: number;
+  /** Collecte des parties classées de la communauté (Draft) : pause entre deux requêtes, 0 = désactivée. */
+  metaCrawlSeconds: number;
+  /** Rang minimal des joueurs explorés (13 = Mythique I). */
+  metaMinTier: number;
+  /** Classements de départ de la collecte (« global », « FR »…). */
+  metaSeedRankings: string[];
 }
 
 function text(value: string | undefined): string | null {
@@ -57,5 +63,11 @@ export function loadConfig(argv: string[] = process.argv): AppConfig {
     initialTags,
     pollActiveSeconds: integer(env.POLL_ACTIVE_SECONDS, 120, 30),
     pollIdleSeconds: integer(env.POLL_IDLE_SECONDS, 600, 60),
+    metaCrawlSeconds: env.META_CRAWL_SECONDS?.trim() === '0' ? 0 : integer(env.META_CRAWL_SECONDS, 4, 1),
+    metaMinTier: Math.min(22, integer(env.META_MIN_TIER, 13, 1)),
+    metaSeedRankings: (text(env.META_SEED_RANKINGS) ?? 'global,FR')
+      .split(/[,;\s]+/)
+      .map((ranking) => (ranking.toLowerCase() === 'global' ? 'global' : ranking.toUpperCase()))
+      .filter(Boolean),
   };
 }

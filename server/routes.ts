@@ -9,6 +9,8 @@ import { BrawlStarsError } from './brawlstars/client';
 import { KeyUnavailableError, type KeyProvider } from './brawlstars/keys';
 import type { AppConfig } from './config';
 import { createBackup, listBackups, toCsv } from './backup';
+import { draftOverview, draftRecommend } from './draftView';
+import type { MetaCrawler } from './meta/crawler';
 import { ImageCache } from './images';
 import { errorMessage } from './log';
 import type { Poller } from './poller';
@@ -48,6 +50,7 @@ export interface RouteDeps extends ViewDeps {
   images: ImageCache;
   version: string;
   backupDir: string;
+  metaCrawler: MetaCrawler | null;
 }
 
 type Params = { tag?: string; id?: string; kind?: string; file?: string };
@@ -207,6 +210,34 @@ export function registerRoutes(app: FastifyInstance, deps: RouteDeps): void {
   // ── Pages ──
 
   app.get('/api/players/:tag/overview', async (request: Req) => overviewView(deps, player(request)));
+
+  // ── Draft (Ranked) ──
+
+  const draftDeps = () => ({ db, catalog: deps.catalog, crawler: deps.metaCrawler, minTier: config.metaMinTier });
+  const ids = (value: string | undefined) =>
+    (value ?? '')
+      .split(',')
+      .map((part) => Number.parseInt(part, 10))
+      .filter((id) => Number.isInteger(id) && id > 0)
+      .slice(0, 6);
+
+  app.get('/api/players/:tag/draft', async (request: Req) => draftOverview(draftDeps(), player(request)));
+
+  app.get('/api/players/:tag/draft/recommend', async (request: Req) => {
+    const { map, mode } = request.query;
+    if (!map || !mode) throw new HttpError(400, 'Choisis une map.');
+    const after = Number.parseInt(request.query.after ?? '0', 10);
+    return draftRecommend(draftDeps(), player(request), {
+      map,
+      mode,
+      bans: ids(request.query.bans),
+      allies: ids(request.query.allies).slice(0, 2),
+      enemies: ids(request.query.enemies).slice(0, 3),
+      enemyPicksAfter: Number.isFinite(after) ? Math.min(3, Math.max(0, after)) : 0,
+      onlyOwned: request.query.owned !== '0',
+      personal: request.query.personal !== '0',
+    });
+  });
 
   app.get('/api/players/:tag/ranked', async (request: Req) => {
     const queue = (['all', 'solo', 'team'] as RankedQueue[]).includes(request.query.queue as RankedQueue)

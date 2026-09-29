@@ -8,7 +8,7 @@ import { useStatus } from '../lib/api';
 // Documentation intégrée. À TENIR À JOUR : toute fonctionnalité ajoutée, modifiée
 // ou retirée dans l'app doit être reflétée ici (voir CLAUDE.md).
 
-const DOC_VERSION = '1.2.3';
+const DOC_VERSION = '1.3.0';
 
 interface Section {
   id: string;
@@ -172,6 +172,7 @@ const SECTIONS: Section[] = [
             [<PageLink to="accueil">Accueil</PageLink>, 'Résumé centré sur le Ranked : rang, points, sets, dernière session, objectifs, trophées.'],
             [<PageLink to="en-direct">En direct</PageLink>, 'À garder sur le téléphone pendant que tu joues : points gagnés, sets, série.'],
             [<PageLink to="ranked">Ranked</PageLink>, 'Analyse complète du mode classé : sets, points, brawlers, maps, adversaires, coéquipiers.'],
+            [<PageLink to="draft">Draft</PageLink>, 'Simulateur de draft Ranked : le meilleur pick selon la map, les bans, tes alliés et les ennemis.'],
             [<PageLink to="trophees">Trophées</PageLink>, 'Courbe des trophées, variation par jour, prestige, séries de victoires.'],
             [<PageLink to="combats">Combats</PageLink>, 'Historique filtrable de toutes tes parties et statistiques détaillées.'],
             [<PageLink to="brawlers">Brawlers</PageLink>, 'Collection, équipement, coût restant et priorités d’amélioration.'],
@@ -183,7 +184,7 @@ const SECTIONS: Section[] = [
         />
         <P>
           Sur ordinateur, toutes les pages sont dans la barre latérale. Sur téléphone, la barre du bas donne Accueil, En direct,
-          Ranked et Brawlers ; les autres pages sont dans « Plus ». Le sélecteur en haut change de joueur suivi. Chaque page
+          Ranked et Draft ; les autres pages sont dans « Plus ». Le sélecteur en haut change de joueur suivi. Chaque page
           a un lien « Aide » qui mène à sa section ici.
         </P>
         <H3>Lire les courbes</H3>
@@ -307,6 +308,54 @@ const SECTIONS: Section[] = [
           Une session regroupe des parties espacées de moins de 30 minutes. Elle est dite « en cours » si la dernière partie
           date de moins de 30 minutes.
         </P>
+      </>
+    ),
+  },
+  {
+    id: 'draft',
+    title: 'Draft',
+    group: 'Pages',
+    keywords: 'draft simulateur bans picks ordre 1-2-2-1 contre synergie meilleur pick map conseil',
+    body: (
+      <>
+        <P>
+          Le simulateur à ouvrir sur ton téléphone pendant le draft d’une partie classée. Il classe les meilleurs choix pour{' '}
+          <strong>ton</strong> pick d’après les parties classées de haut niveau collectées par le dashboard (voir{' '}
+          <PageLink to="calcul-draft">calcul</PageLink> et <PageLink to="collecte-draft">collecte</PageLink>).
+        </P>
+        <List>
+          <li>
+            <strong>Map</strong> : les maps Ranked rencontrées dans les données des 30 derniers jours, avec le nombre de parties
+            collectées sur chacune.
+          </li>
+          <li>
+            <strong>Ton ordre de pick</strong> : 1er à 6e. Le draft suit l’ordre 1-2-2-1 : une équipe choisit en 1, 4 et 5,
+            l’autre en 2, 3 et 6. Ton équipe et tes adversaires en découlent.
+          </li>
+          <li>
+            <strong>Plateau</strong> : 6 bans, puis les picks de chaque équipe. Touche une case pour la sélectionner, puis un
+            brawler dans la grille (recherche possible) ; la case suivante est sélectionnée toute seule. La croix vide une
+            case, « Recommencer » vide tout.
+          </li>
+          <li>
+            <strong>Pour ton pick</strong> : les meilleurs brawlers encore disponibles, avec des chances estimées et leurs
+            raisons : taux de victoire sur la map, duo avec un allié, « bat » ou « craint » un ennemi déjà choisi, « contrable
+            par » un brawler que l’adversaire peut encore prendre, et ta propre réussite avec ce brawler. « Choisir » le place
+            dans ta case.
+          </li>
+          <li>
+            <strong>Options</strong> : « Seulement mes brawlers » (ceux que tu as débloqués) et « Tenir compte de mon
+            historique » (bonus modeste pour les brawlers qui te réussissent en Ranked). Les réglages sont mémorisés.
+          </li>
+          <li>
+            <strong>Bans conseillés</strong> : les brawlers les plus forts et les plus joués sur la map ; toucher un nom
+            l’ajoute aux bans.
+          </li>
+        </List>
+        <Note>
+          Les pourcentages sont indicatifs : ils résument ce qui marche sur la map à haut niveau, pas une certitude sur la
+          partie. Sur une map encore peu documentée (moins de 150 parties), un avertissement le signale.
+        </Note>
       </>
     ),
   },
@@ -726,6 +775,54 @@ const SECTIONS: Section[] = [
     ),
   },
   {
+    id: 'calcul-draft',
+    title: 'Recommandations du Draft',
+    group: 'Calculs',
+    keywords: 'draft calcul log-odds synergie contre risque lissage demi-vie mythique ban',
+    body: (
+      <>
+        <P>
+          Base : les manches classées collectées (voir <PageLink to="collecte-draft">collecte</PageLink>) du mode de la map,
+          sur 30 jours, en ne gardant que les parties où tous les joueurs sont au moins Mythique I quand il y en a assez
+          (400 sur le mode), sinon tous les rangs. Une manche compte deux fois moins toutes les trois semaines, pour suivre
+          la méta.
+        </P>
+        <List>
+          <li>
+            <strong>Force sur la map</strong> : taux de victoire du brawler sur la map, lissé vers son taux sur le mode (qui
+            est lui-même lissé vers 50 %). Quelques parties ne suffisent donc jamais à afficher un « 100 % ».
+          </li>
+          <li>
+            <strong>Duo</strong> : ce qu’un duo obtient ensemble, comparé à ce qu’on attendrait des deux brawlers pris
+            séparément (sur le mode, pour avoir assez de parties). Positif : ils se complètent.
+          </li>
+          <li>
+            <strong>Contre</strong> : résultat d’un brawler face à un autre, comparé à l’attendu d’après leur force
+            respective. « Bat X » : il fait mieux que prévu contre X ; « craint X » : moins bien.
+          </li>
+          <li>
+            <strong>Risque d’être contré</strong> : si l’adversaire choisit encore après toi, on regarde les trois meilleurs
+            contres qu’il peut encore prendre (le premier compte le plus), proportionnellement au nombre de picks qui lui
+            restent. C’est ce qui pousse à garder les brawlers faciles à contrer pour la fin.
+          </li>
+          <li>
+            <strong>Ta maîtrise</strong> (option) : ton taux de victoire en Ranked sur 90 jours avec ce brawler, lissé, pour
+            un bonus limité à ± 4 points.
+          </li>
+        </List>
+        <P>
+          Ces effets s’additionnent sur l’échelle des « log-odds » (le logarithme du rapport victoire / défaite), qui permet
+          de cumuler des avantages sans dépasser 100 % ; le total est reconverti en pourcentage. Chaque raison affichée
+          indique son effet en points de pourcentage (seuls les effets d’au moins 2 points sont cités).
+        </P>
+        <P>
+          <strong>Bans conseillés</strong> : l’API ne dit pas ce qui est banni. Le classement combine le taux de victoire
+          sur la map (85 %) et la fréquence de pick (15 %), parmi les brawlers choisis dans au moins 2 % des équipes.
+        </P>
+      </>
+    ),
+  },
+  {
     id: 'calcul-recommandations',
     title: 'Recommandations de la rotation',
     group: 'Calculs',
@@ -870,6 +967,52 @@ const SECTIONS: Section[] = [
     ),
   },
   {
+    id: 'collecte-draft',
+    title: 'Collecte des parties de la communauté',
+    group: 'Fonctionnement',
+    keywords: 'collecte communauté draft classements boule de neige crawler journal requêtes meta_crawl mythique',
+    body: (
+      <>
+        <P>
+          L’API officielle ne publie aucune statistique globale (taux de victoire par map, picks…), et les sites
+          communautaires ne proposent pas d’API ouverte. Le dashboard construit donc sa propre base, en tâche de fond :
+        </P>
+        <List>
+          <li>
+            <strong>Départ</strong> : une fois par jour, les 200 premiers des classements mondial et français (réglable)
+            rejoignent la file des joueurs à explorer.
+          </li>
+          <li>
+            <strong>Lecture</strong> : toutes les 4 secondes, le journal (25 derniers combats) d’un joueur de la file est lu ;
+            seules les manches de Ranked à 3 contre 3 sont gardées : map, mode, les 6 brawlers, l’équipe gagnante et le rang
+            des joueurs. Une manche vue dans plusieurs journaux n’est comptée qu’une fois.
+          </li>
+          <li>
+            <strong>Boule de neige</strong> : les joueurs croisés dans ces manches rejoignent la file s’ils sont au moins
+            Mythique I. Un joueur est relu 3 h plus tard s’il a beaucoup joué, 8 h s’il a un peu joué, 24 à 48 h sinon.
+          </li>
+          <li>
+            <strong>Tes propres manches classées</strong> sont ajoutées aussi, à chaque collecte habituelle.
+          </li>
+          <li>
+            <strong>Limites</strong> : file plafonnée à 40 000 joueurs, manches gardées 35 jours (le Draft en utilise 30), et
+            exclues des sauvegardes (elles se reconstituent seules). Si l’API répond « trop de requêtes », la cadence
+            ralentit automatiquement puis revient progressivement.
+          </li>
+          <li>
+            <strong>Réglages</strong> (fichier <Code>.env</Code>) : <Code>META_CRAWL_SECONDS</Code> (pause entre deux
+            lectures, 0 pour désactiver), <Code>META_MIN_TIER</Code> (13 = Mythique I) et <Code>META_SEED_RANKINGS</Code>{' '}
+            (par défaut <Code>global,FR</Code>).
+          </li>
+        </List>
+        <P>
+          Il faut compter quelques jours de collecte pour des conseils solides : environ 20 000 lectures par jour, dont une
+          partie seulement contient du Ranked. Le bas de la page Draft affiche l’avancement.
+        </P>
+      </>
+    ),
+  },
+  {
     id: 'cle-api',
     title: 'Clé API',
     group: 'Fonctionnement',
@@ -961,7 +1104,10 @@ const SECTIONS: Section[] = [
         </li>
         <li>Les points par set ne sont mesurables que pour les sets joués pendant que le dashboard tourne.</li>
         <li>Les seuils de rang sont estimés (500 points par rang) ; les tout premiers rangs ne sont pas couverts.</li>
-        <li>L’API ne donne ni les bans du Ranked, ni les statistiques mondiales (méta) : tout est calculé sur tes parties.</li>
+        <li>
+          L’API ne donne ni les bans ni l’ordre des picks du Ranked : les bans conseillés du Draft sont estimés. Les
+          statistiques de la communauté viennent de la collecte du dashboard, et demandent quelques jours pour être fiables.
+        </li>
         <li>La rareté et les images dépendent de Brawlify ; si le site est indisponible, l’app fonctionne sans.</li>
         <li>Les prix d’amélioration sont ceux connus à ce jour (modifiables dans le code).</li>
       </List>
@@ -1020,6 +1166,15 @@ const SECTIONS: Section[] = [
     keywords: 'versions changelog nouveautés',
     body: (
       <>
+        <H3>1.3.0</H3>
+        <List>
+          <li>
+            Nouvel onglet Draft : simulateur de draft Ranked (map, bans, picks en 1-2-2-1) avec les meilleurs choix pour ton
+            pick, leurs raisons (map, duos, contres, risque d’être contré, maîtrise) et des bans conseillés.
+          </li>
+          <li>Collecte en continu des parties classées de haut niveau de la communauté (classements, puis boule de neige).</li>
+          <li>Barre du bas sur téléphone : Draft remplace Brawlers (toujours dans « Plus »).</li>
+        </List>
         <H3>1.2.3</H3>
         <List>
           <li>
