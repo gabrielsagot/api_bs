@@ -517,9 +517,10 @@ const SECTIONS: Section[] = [
             (HC) possédés.
           </li>
           <li>
-            <strong>Fiche d’un brawler</strong> (clic sur une tuile) : trophées dans le temps, winrate par mode et par map,
-            équipement possédé ou manquant (gadgets, star powers, hypercharge, gears, buffies), détail du coût restant et
-            dernières parties.
+            <strong>Fiche d’un brawler</strong> (clic sur une tuile) : progression des trophées par partie jouée (avec
+            détection des paliers majeurs 500, 1 000 ⭐, 2 000 👑, 3 000 🏆 et courbe de prédiction vers le prochain millier),
+            winrate par mode et par map, équipement possédé ou manquant (gadgets, star powers, hypercharge, gears, buffies),
+            détail du coût restant et dernières parties.
           </li>
         </List>
         <P>
