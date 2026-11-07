@@ -459,9 +459,20 @@ export interface CostLineDto {
   powerPoints: number;
 }
 
+export interface BrawlerMatchPoint {
+  matchIndex: number;
+  time: string;
+  trophies: number;
+  change: number | null;
+  outcome?: Outcome | null;
+  mode?: string;
+  map?: string | null;
+}
+
 export interface BrawlerDetailResponse {
   card: BrawlerCardDto;
   history: SeriesPoint[];
+  matchProgression: BrawlerMatchPoint[];
   stats: WinLoss & { starPlayerRate: number | null; trophyNet: number | null };
   byMode: BreakdownRow[];
   byMap: BreakdownRow[];

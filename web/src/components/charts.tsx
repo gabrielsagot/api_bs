@@ -21,6 +21,9 @@ import { playPoints, playTimeline, type PlayTimeline } from '../lib/playtime';
 import { fmtCompact, fmtDayKey, fmtInt, fmtSigned } from '../lib/format';
 import { Card, CardHeader } from './ui';
 
+export { BrawlerProgressionChart } from './BrawlerProgressionChart';
+export type { BrawlerProgressionChartProps } from './BrawlerProgressionChart';
+
 // Graphiques sobres : traits fins de 2 px, grille en filets, info-bulle avec
 // réticule, et une vue « tableau » pour chaque graphique.
 

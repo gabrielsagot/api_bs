@@ -274,3 +274,47 @@ describe('recommandations', () => {
     expect(recommendations.map((r) => r.brawlerId)).toEqual([2]);
   });
 });
+
+describe('progression de brawler', () => {
+  it('construit l’évolution des trophées par partie jouée', async () => {
+    const { Db } = await import('../server/db');
+    const { brawlerDetailView } = await import('../server/views');
+    const db = new Db(':memory:');
+    db.run(
+      `INSERT INTO players (tag, name, added_at, profile_json) VALUES (?, ?, ?, ?)`,
+      [
+        '#TEST',
+        'Testeur',
+        new Date().toISOString(),
+        JSON.stringify({
+          tag: '#TEST',
+          name: 'Testeur',
+          trophies: 1050,
+          highestTrophies: 1050,
+          brawlers: [{ id: 10, name: 'SHELLY', power: 11, trophies: 1050, highestTrophies: 1050 }],
+        }),
+      ],
+    );
+    const times = ['2026-11-01T10:00:00.000Z', '2026-11-01T10:05:00.000Z', '2026-11-01T10:10:00.000Z'];
+    const trophies = [980, 1000, 1025];
+    const changes = [20, 25, 25];
+    for (let i = 0; i < 3; i++) {
+      db.run(
+        `INSERT INTO battles (tag, battle_time, mode, type, brawler_id, brawler_trophies, trophy_change, star_player, participants_json, raw_json)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        ['#TEST', times[i], 'gemGrab', 'ranked', 10, trophies[i], changes[i], 0, '[]', '{}'],
+      );
+    }
+    const row = db.get<any>('SELECT * FROM players WHERE tag = ?', ['#TEST']);
+    const catalog = { get: () => ({ brawlers: [{ id: 10, name: 'SHELLY', rarity: 'common' }] }) };
+    const detail = brawlerDetailView({ db, catalog: catalog as any }, row, 10);
+    expect(detail).not.toBeNull();
+    expect(detail!.matchProgression).toHaveLength(4); // 0 (départ) + 3 parties
+    expect(detail!.matchProgression[0].matchIndex).toBe(0);
+    expect(detail!.matchProgression[0].trophies).toBe(980);
+    expect(detail!.matchProgression[1].matchIndex).toBe(1);
+    expect(detail!.matchProgression[1].trophies).toBe(1000);
+    expect(detail!.matchProgression[2].trophies).toBe(1025);
+    expect(detail!.matchProgression[3].trophies).toBe(1050);
+  });
+});

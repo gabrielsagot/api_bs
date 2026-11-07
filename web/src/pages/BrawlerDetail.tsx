@@ -5,7 +5,7 @@ import type { AccessoryDto } from '../../../shared/types';
 import { BrawlerAvatar } from '../components/avatars';
 import { RarityTag } from '../components/bs';
 import { BattleRow } from '../components/battles';
-import { ChartCard, TimeSeriesChart } from '../components/charts';
+import { BrawlerProgressionChart, ChartCard, TimeSeriesChart } from '../components/charts';
 import { BreakdownTable } from '../components/tables';
 import { Card, CardHeader, EmptyState, ErrorState, LoadingState, Pill, Refetching, StatTile } from '../components/ui';
 import { useBrawler } from '../lib/api';
@@ -87,10 +87,32 @@ export function BrawlerDetailPage() {
 
       <ChartCard
         className="mt-4"
-        title="Trophées dans le temps"
-        table={{ columns: ['Date', 'Trophées'], rows: [...data.history].reverse().map((p) => [fmtDateTime(p.t), fmtInt(p.v)]) }}
+        title="Progression des trophées"
+        subtitle="Axe X en parties jouées · Survol : date et heure réelles · Prédiction +1 000 tr."
+        table={{
+          columns: ['Partie', 'Date & heure', 'Trophées', 'Gain'],
+          rows: data.matchProgression?.length
+            ? [...data.matchProgression]
+                .reverse()
+                .map((p) => [
+                  p.matchIndex === 0 ? 'Départ' : `Partie ${p.matchIndex}`,
+                  fmtDateTime(p.time),
+                  fmtInt(p.trophies),
+                  p.change !== null ? fmtSigned(p.change) : '—',
+                ])
+            : [...data.history].reverse().map((p) => ['—', fmtDateTime(p.t), fmtInt(p.v), '—']),
+        }}
       >
-        <TimeSeriesChart points={data.history} emptyText="Pas encore d’évolution enregistrée pour ce brawler." />
+        {data.matchProgression?.length >= 2 ? (
+          <BrawlerProgressionChart
+            progression={data.matchProgression}
+            currentTrophies={card.trophies ?? 0}
+            highestTrophies={card.highestTrophies ?? card.trophies ?? 0}
+            emptyText="Pas encore de parties enregistrées pour ce brawler."
+          />
+        ) : (
+          <TimeSeriesChart points={data.history} emptyText="Pas encore d’évolution enregistrée pour ce brawler." />
+        )}
       </ChartCard>
 
       <div className="mt-4 grid gap-4 lg:grid-cols-2">

@@ -6,6 +6,7 @@ import type {
   BattleListResponse,
   BattleStatsResponse,
   BrawlerDetailResponse,
+  BrawlerMatchPoint,
   LiveSessionResponse,
   CollectionResponse,
   CompareResponse,
@@ -469,9 +470,42 @@ export function brawlerDetailView(
   if (last) history.push({ t: new Date(now).toISOString(), v: last.v });
   const withTrophies = battles.filter((b) => b.trophyChange !== null);
 
+  const trophyBattles = battles.filter(
+    (b) => battleCategory(b.type) === 'trophies' || (b.trophyChange !== null && !/ranked/i.test(b.type)),
+  );
+  let running = 0;
+  if (trophyBattles.length > 0 && trophyBattles[0].brawlerTrophies !== null) {
+    running = trophyBattles[0].brawlerTrophies;
+  }
+  const matchProgression: BrawlerMatchPoint[] = [];
+  if (trophyBattles.length > 0) {
+    matchProgression.push({
+      matchIndex: 0,
+      time: trophyBattles[0].battleTime,
+      trophies: running,
+      change: null,
+    });
+    for (let i = 0; i < trophyBattles.length; i++) {
+      const b = trophyBattles[i];
+      const start = b.brawlerTrophies ?? running;
+      const end = start + (b.trophyChange ?? 0);
+      running = end;
+      matchProgression.push({
+        matchIndex: i + 1,
+        time: b.battleTime,
+        trophies: end,
+        change: b.trophyChange,
+        outcome: b.outcome,
+        mode: b.mode,
+        map: b.map,
+      });
+    }
+  }
+
   return {
     card,
     history,
+    matchProgression,
     stats: {
       ...stats,
       starPlayerRate: starPlayerRate(battles),
