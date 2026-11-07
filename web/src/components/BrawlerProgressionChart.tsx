@@ -1,5 +1,5 @@
 import clsx from 'clsx';
-import { Flame, Sparkles, Target, TrendingUp } from 'lucide-react';
+import { Flame, Info, Sparkles, Target, TrendingUp } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import {
   CartesianGrid,
@@ -20,6 +20,7 @@ import { niceTicks } from './charts';
 const BRAWLER_MAX_CAP = 3100;
 const ALL_MILESTONES = [500, 1000, 1500, 2000, 2500, 3000] as const;
 const SPECIAL_MILESTONES = [1000, 2000, 3000] as const;
+const MIN_MATCHES_FOR_PREDICTION = 3;
 
 export interface BrawlerProgressionChartProps {
   progression: BrawlerMatchPoint[];
@@ -157,44 +158,77 @@ export function BrawlerProgressionChart({
     };
   }, [progression, highest]);
 
-  // 2. Calcul de la courbe de prédiction sur les 1 000 prochains trophées (cap 3100)
-  const { chartData, targetTrophies, deltaTrophies, gainRate, matchesNeeded, predictedNextMilestone } = useMemo(() => {
-    const target = Math.min(current + 1000, BRAWLER_MAX_CAP);
+  // 2. Calcul de la cible (prochain millier de trophées) et de la courbe de prédiction
+  const {
+    chartData,
+    targetTrophies,
+    deltaTrophies,
+    gainRate,
+    matchesNeeded,
+    hasPrediction,
+    predictionReason,
+    predictedNextMilestone,
+  } = useMemo(() => {
+    // La cible est le prochain millier de trophées (ex: 2000 si entre 1000 et 1999, 3000 si entre 2000 et 2999, cap à 3100)
+    const nextThousand = Math.floor(current / 1000 + 1) * 1000;
+    const target = Math.min(nextThousand, BRAWLER_MAX_CAP);
     const delta = Math.max(0, target - current);
 
-    if (progression.length < 2) {
+    const matchesWithChange = progression.filter((p) => p.matchIndex > 0 && p.change !== null);
+
+    // Vérification explicite du volume d'historique : s'il n'y a pas assez de parties, ne rien afficher
+    if (matchesWithChange.length < MIN_MATCHES_FOR_PREDICTION) {
       return {
         chartData: progression,
         targetTrophies: target,
         deltaTrophies: delta,
-        gainRate: 0,
-        matchesNeeded: 0,
+        gainRate: null,
+        matchesNeeded: null,
+        hasPrediction: false,
+        predictionReason: `Historique insuffisant : au moins ${MIN_MATCHES_FOR_PREDICTION} combats enregistrés sont requis (${matchesWithChange.length} combat${matchesWithChange.length > 1 ? 's' : ''} actuellement).`,
         predictedNextMilestone: null,
       };
     }
 
-    // Calcul du rythme de gain récent par partie
-    const matchesWithChange = progression.filter((p) => p.matchIndex > 0 && p.change !== null);
+    // Calcul du rythme de gain récent par partie sur les 20 dernières parties
     const recent = matchesWithChange.slice(-20);
-    const recentGain = recent.length ? recent.reduce((sum, p) => sum + (p.change ?? 0), 0) / recent.length : 0;
+    const recentGain = recent.reduce((sum, p) => sum + (p.change ?? 0), 0) / recent.length;
 
-    let rate = 6;
-    if (recentGain >= 1) {
+    let rate = 0;
+    let isPositive = false;
+
+    if (recentGain > 0) {
       rate = recentGain;
+      isPositive = true;
     } else {
-      const allGain = matchesWithChange.length
-        ? matchesWithChange.reduce((sum, p) => sum + (p.change ?? 0), 0) / matchesWithChange.length
-        : 0;
-      if (allGain >= 1) rate = allGain;
+      const allGain = matchesWithChange.reduce((sum, p) => sum + (p.change ?? 0), 0) / matchesWithChange.length;
+      if (allGain > 0) {
+        rate = allGain;
+        isPositive = true;
+      }
     }
 
-    const matchesCount = delta > 0 ? Math.max(10, Math.min(180, Math.round(delta / rate))) : 0;
+    // Si le rythme n'est pas positif (joueur en série de défaites ou neutre), on ne peut pas projeter l'atteinte du prochain millier
+    if (!isPositive || rate <= 0) {
+      return {
+        chartData: progression,
+        targetTrophies: target,
+        deltaTrophies: delta,
+        gainRate: recentGain,
+        matchesNeeded: null,
+        hasPrediction: false,
+        predictionReason: `Rythme récent non positif (${fmtSigned(recentGain, 1)} tr. / partie) : projection vers le palier supérieur indisponible.`,
+        predictedNextMilestone: null,
+      };
+    }
 
+    // Historique suffisant et rythme positif validés
+    const matchesCount = delta > 0 ? Math.max(5, Math.min(180, Math.round(delta / rate))) : 0;
     const lastPoint = progression[progression.length - 1];
     const lastIndex = lastPoint.matchIndex;
     const lastTime = Date.parse(lastPoint.time) || Date.now();
 
-    // Estimation de la cadence temporelle moyenne
+    // Estimation de la cadence temporelle
     let cadenceMs = (24 * 60 * 60 * 1000) / 4;
     if (progression.length >= 5) {
       const firstTime = Date.parse(progression[0].time);
@@ -204,7 +238,6 @@ export function BrawlerProgressionChart({
       }
     }
 
-    // Points de projection pour la seconde courbe
     const steps = Math.min(matchesCount, 14);
     const predictedPoints: Array<BrawlerMatchPoint & { prediction: number; isPrediction: boolean }> = [];
     let predNext: { milestone: number; matchIndex: number; dateIso: string } | null = null;
@@ -213,7 +246,7 @@ export function BrawlerProgressionChart({
       for (let i = 1; i <= steps; i++) {
         const prog = i / steps;
         const mIdx = Math.round(lastIndex + prog * matchesCount);
-        const predT = Math.min(BRAWLER_MAX_CAP, Math.round(current + prog * delta));
+        const predT = Math.min(target, Math.round(current + prog * delta));
         const estTime = new Date(lastTime + (mIdx - lastIndex) * cadenceMs).toISOString();
 
         predictedPoints.push({
@@ -231,7 +264,6 @@ export function BrawlerProgressionChart({
       }
     }
 
-    // Jonction fluide sans rupture
     const merged = [
       ...progression.map((p, idx) => ({
         ...p,
@@ -247,6 +279,8 @@ export function BrawlerProgressionChart({
       deltaTrophies: delta,
       gainRate: rate,
       matchesNeeded: matchesCount,
+      hasPrediction: true,
+      predictionReason: null,
       predictedNextMilestone: predNext,
     };
   }, [progression, current, nextMilestone]);
@@ -296,7 +330,7 @@ export function BrawlerProgressionChart({
                 <span
                   key={m}
                   className={clsx(
-                    'inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1 text-[12px] font-medium shadow-2xs',
+                    'inline-flex items-center gap-1 rounded-lg border px-2.5 py-1 text-[12px] font-medium shadow-2xs',
                     meta.pillBg,
                     meta.pillBorder,
                     meta.pillText,
@@ -310,16 +344,22 @@ export function BrawlerProgressionChart({
               );
             }
 
-            if (isNext && predictedNextMilestone) {
+            if (isNext) {
               return (
                 <span
                   key={m}
                   className="inline-flex items-center gap-1.5 rounded-lg border border-dashed border-pink-300 bg-pink-50/80 px-2.5 py-1 text-[12px] font-medium text-pink-700 shadow-2xs"
-                  title={`Prochain palier : estimé vers la partie ${predictedNextMilestone.matchIndex}`}
+                  title={
+                    predictedNextMilestone
+                      ? `Prochain palier : estimé vers la partie ${predictedNextMilestone.matchIndex}`
+                      : 'Prochain palier majeur'
+                  }
                 >
                   <span>{meta.icon}</span>
                   <span className="font-bold">{fmtInt(m)}</span>
-                  <span className="text-[10px] font-normal opacity-85">~P. {predictedNextMilestone.matchIndex}</span>
+                  {predictedNextMilestone && (
+                    <span className="text-[10px] font-normal opacity-85">~P. {predictedNextMilestone.matchIndex}</span>
+                  )}
                 </span>
               );
             }
@@ -338,18 +378,18 @@ export function BrawlerProgressionChart({
         </button>
       </div>
 
-      {/* ── Légende claire et sobre ── */}
+      {/* ── Légende claire & état de la prédiction ── */}
       <div className="flex flex-wrap items-center justify-between gap-2 text-[12px] text-ink-2">
         <div className="flex items-center gap-4">
           <div className="flex items-center gap-1.5">
             <span className="h-0.5 w-3.5 rounded-full bg-blue-600" />
             <span className="font-medium text-ink">Combats réels ({progression.length - 1})</span>
           </div>
-          {deltaTrophies > 0 && (
+          {hasPrediction && deltaTrophies > 0 && (
             <div className="flex items-center gap-1.5">
               <span className="h-0.5 w-3.5 rounded-full border-b-2 border-dashed border-amber-500" />
               <span className="font-medium text-amber-600">
-                Prédiction (+{fmtInt(deltaTrophies)} tr.)
+                Prédiction (+{fmtInt(deltaTrophies)} tr. vers {fmtInt(targetTrophies)})
               </span>
             </div>
           )}
@@ -362,11 +402,20 @@ export function BrawlerProgressionChart({
         </div>
       </div>
 
+      {/* ── Message explicite si l'historique est insuffisant (aucune courbe affichée) ── */}
+      {!hasPrediction && predictionReason && (
+        <div className="flex items-center gap-2.5 rounded-xl border border-amber-200 bg-amber-50/80 px-3.5 py-2 text-[12px] text-amber-900">
+          <Info className="size-4 shrink-0 text-amber-600" />
+          <span>
+            <strong>Prédiction non affichée :</strong> {predictionReason}
+          </span>
+        </div>
+      )}
+
       {/* ── Graphique Recharts ── */}
       <div style={{ height }} role="img" aria-label="Progression des trophées par partie jouée">
         <ResponsiveContainer width="100%" height="100%">
           <LineChart data={chartData} margin={{ top: 10, right: 12, bottom: 4, left: 0 }}>
-            {/* Grille horizontale très discrète et claire */}
             <CartesianGrid vertical={false} stroke={CHART.grid} />
 
             <XAxis
@@ -467,7 +516,12 @@ export function BrawlerProgressionChart({
 
                     {meta && (
                       <div
-                        className={clsx('mt-2 flex items-center gap-1.5 rounded-lg border px-2 py-1 text-[11px] font-semibold', meta.pillBg, meta.pillBorder, meta.pillText)}
+                        className={clsx(
+                          'mt-2 flex items-center gap-1.5 rounded-lg border px-2 py-1 text-[11px] font-semibold',
+                          meta.pillBg,
+                          meta.pillBorder,
+                          meta.pillText,
+                        )}
                       >
                         <span>{meta.icon}</span>
                         <span>Palier franchi : {meta.label}</span>
@@ -478,17 +532,17 @@ export function BrawlerProgressionChart({
               }}
             />
 
-            {/* ── UNE SEULE ligne de référence ciblée : le prochain objectif ── */}
-            {nextMilestone && nextMilestone <= maxTrophies + 50 && (
+            {/* ── Ligne de référence vers le prochain millier ciblé ── */}
+            {targetTrophies && targetTrophies <= maxTrophies + 50 && (
               <ReferenceLine
-                y={nextMilestone}
-                stroke={getMilestoneMeta(nextMilestone).color}
+                y={targetTrophies}
+                stroke={getMilestoneMeta(targetTrophies).color}
                 strokeWidth={1.5}
                 strokeDasharray="4 4"
                 label={{
-                  value: `Objectif ${getMilestoneMeta(nextMilestone).badge}`,
+                  value: `Objectif ${getMilestoneMeta(targetTrophies).badge}`,
                   position: 'insideTopRight',
-                  fill: getMilestoneMeta(nextMilestone).color,
+                  fill: getMilestoneMeta(targetTrophies).color,
                   fontSize: 11,
                   fontWeight: 600,
                   offset: 4,
@@ -496,7 +550,7 @@ export function BrawlerProgressionChart({
               />
             )}
 
-            {/* ── Courbe Réelle (Traits épurés, marqueurs fins et légers sur 1000/2000/3000) ── */}
+            {/* ── Courbe Réelle (Traits épurés) ── */}
             <Line
               dataKey="trophies"
               type="linear"
@@ -525,8 +579,8 @@ export function BrawlerProgressionChart({
               activeDot={{ r: 4.5, fill: '#0071e3', stroke: '#ffffff', strokeWidth: 2 }}
             />
 
-            {/* ── Courbe de Prédiction (+1 000 trophées, cap 3100) ── */}
-            {deltaTrophies > 0 && (
+            {/* ── Courbe de Prédiction (uniquement si historique suffisant et rythme positif) ── */}
+            {hasPrediction && deltaTrophies > 0 && (
               <Line
                 dataKey="prediction"
                 type="linear"
@@ -544,7 +598,7 @@ export function BrawlerProgressionChart({
         </ResponsiveContainer>
       </div>
 
-      {/* ── Résumé synthétique sous le graphique (100% clair) ── */}
+      {/* ── Résumé synthétique sous le graphique ── */}
       <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-3">
         <div className="flex items-center gap-2.5 rounded-xl bg-fill p-2.5 border border-line">
           <div className="grid size-8 place-items-center rounded-lg bg-blue-50 text-blue-600 border border-blue-100">
@@ -553,7 +607,13 @@ export function BrawlerProgressionChart({
           <div>
             <div className="text-[11px] font-medium text-ink-3">Rythme actuel</div>
             <div className="text-[13px] font-semibold text-ink tnum">
-              +{gainRate.toFixed(1)} tr. <span className="text-[11px] font-normal text-ink-2">/ partie</span>
+              {gainRate !== null ? (
+                <>
+                  +{gainRate.toFixed(1)} tr. <span className="text-[11px] font-normal text-ink-2">/ partie</span>
+                </>
+              ) : (
+                <span className="text-[12px] font-normal text-ink-3">Données insuffisantes</span>
+              )}
             </div>
           </div>
         </div>
@@ -563,7 +623,7 @@ export function BrawlerProgressionChart({
             <Target className="size-4" />
           </div>
           <div>
-            <div className="text-[11px] font-medium text-ink-3">Objectif</div>
+            <div className="text-[11px] font-medium text-ink-3">Prochain millier</div>
             <div className="text-[13px] font-semibold text-ink tnum">
               {fmtInt(targetTrophies)} tr.{' '}
               <span className="text-[11px] font-normal text-ink-2">
@@ -580,7 +640,9 @@ export function BrawlerProgressionChart({
           <div>
             <div className="text-[11px] font-medium text-ink-3">Parties estimées</div>
             <div className="text-[13px] font-semibold text-ink tnum">
-              {deltaTrophies === 0 ? (
+              {!hasPrediction ? (
+                <span className="text-[12px] font-normal text-ink-3">Indisponible</span>
+              ) : deltaTrophies === 0 ? (
                 'Cap max atteint !'
               ) : (
                 <>
