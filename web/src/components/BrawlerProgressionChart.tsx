@@ -35,6 +35,9 @@ interface MilestoneMeta {
   label: string;
   color: string;
   badge: string;
+  pillBg: string;
+  pillBorder: string;
+  pillText: string;
 }
 
 function getMilestoneMeta(m: number): MilestoneMeta {
@@ -44,8 +47,11 @@ function getMilestoneMeta(m: number): MilestoneMeta {
         special: true,
         icon: '★',
         label: '1 000 tr. (Élite)',
-        color: '#d97706', // amber-600 (bien lisible)
+        color: '#d97706', // amber-600
         badge: '1 000 tr. ⭐',
+        pillBg: 'bg-amber-50',
+        pillBorder: 'border-amber-200',
+        pillText: 'text-amber-800',
       };
     case 2000:
       return {
@@ -54,6 +60,9 @@ function getMilestoneMeta(m: number): MilestoneMeta {
         label: '2 000 tr. (Maître)',
         color: '#7c3aed', // purple-600
         badge: '2 000 tr. 👑',
+        pillBg: 'bg-purple-50',
+        pillBorder: 'border-purple-200',
+        pillText: 'text-purple-800',
       };
     case 3000:
       return {
@@ -62,6 +71,9 @@ function getMilestoneMeta(m: number): MilestoneMeta {
         label: '3 000 tr. (Sommet)',
         color: '#db2777', // pink-600
         badge: '3 000 tr. 🏆',
+        pillBg: 'bg-pink-50',
+        pillBorder: 'border-pink-200',
+        pillText: 'text-pink-800',
       };
     default:
       return {
@@ -70,14 +82,17 @@ function getMilestoneMeta(m: number): MilestoneMeta {
         label: `${fmtInt(m)} tr.`,
         color: '#0284c7', // sky-600
         badge: `${fmtInt(m)} tr.`,
+        pillBg: 'bg-white',
+        pillBorder: 'border-line',
+        pillText: 'text-ink-2',
       };
   }
 }
 
 function outcomeBadge(outcome?: Outcome | null) {
-  if (outcome === 'win') return 'bg-emerald-500/10 text-emerald-600 dark:bg-emerald-500/20 dark:text-emerald-400';
-  if (outcome === 'loss') return 'bg-rose-500/10 text-rose-600 dark:bg-rose-500/20 dark:text-rose-400';
-  return 'bg-slate-500/10 text-slate-600 dark:bg-slate-500/20 dark:text-slate-400';
+  if (outcome === 'win') return 'bg-good-soft text-good';
+  if (outcome === 'loss') return 'bg-bad-soft text-bad';
+  return 'bg-fill text-ink-2';
 }
 
 function outcomeLabel(outcome?: Outcome | null) {
@@ -97,10 +112,10 @@ export function BrawlerProgressionChart({
   const current = currentTrophies ?? progression.at(-1)?.trophies ?? 0;
   const highest = Math.max(highestTrophies ?? current, current);
 
-  // Toggle pour afficher tous les paliers intermédiaires si l'utilisateur le souhaite
+  // Toggle pour afficher tous les paliers 500 si l'utilisateur le souhaite
   const [showAllMilestones, setShowAllMilestones] = useState(false);
 
-  // 1. Analyse intelligente et filtrage des paliers majeurs
+  // 1. Analyse intelligente et filtrage contextuel des paliers majeurs
   const { passedMilestones, milestoneHitMap, nextMilestone, relevantMilestones } = useMemo(() => {
     const passed: { milestone: number; matchIndex: number; time: string; trophies: number }[] = [];
     const hitMap = new Map<number, number>(); // matchIndex -> milestone
@@ -114,7 +129,6 @@ export function BrawlerProgressionChart({
           time: hit.time,
           trophies: hit.trophies,
         });
-        // Pour les marqueurs sur la courbe : on priorise les spéciaux (1000, 2000, 3000)
         const existing = hitMap.get(hit.matchIndex);
         const isSpecial = SPECIAL_MILESTONES.includes(m as any);
         if (!existing || isSpecial) {
@@ -126,21 +140,18 @@ export function BrawlerProgressionChart({
     const upcoming = ALL_MILESTONES.filter((m) => m > highest && m <= BRAWLER_MAX_CAP);
     const next = upcoming[0] ?? null;
 
-    // Filtrage contextuel : si le joueur a dépassé 1500 ou 2000 trophées,
-    // on masque les vieux paliers 500 pour ne garder que l'essentiel (1000, 2000, 3000 + dernier palier passé + prochain)
+    // Filtrage contextuel : on masque les anciens paliers de 500 pour ne garder que l'essentiel
     const lastPassed = passed[passed.length - 1]?.milestone;
     const relevant = ALL_MILESTONES.filter((m) => {
       if (SPECIAL_MILESTONES.includes(m as any)) return true;
       if (m === lastPassed) return true;
       if (m === next) return true;
-      // Si l'utilisateur active manuellement "Tous les paliers"
       return false;
     });
 
     return {
       passedMilestones: passed,
       milestoneHitMap: hitMap,
-      upcomingMilestones: upcoming,
       nextMilestone: next,
       relevantMilestones: relevant,
     };
@@ -167,7 +178,7 @@ export function BrawlerProgressionChart({
     const recent = matchesWithChange.slice(-20);
     const recentGain = recent.length ? recent.reduce((sum, p) => sum + (p.change ?? 0), 0) / recent.length : 0;
 
-    let rate = 6; // valeur par défaut réaliste en ladder
+    let rate = 6;
     if (recentGain >= 1) {
       rate = recentGain;
     } else {
@@ -183,7 +194,7 @@ export function BrawlerProgressionChart({
     const lastIndex = lastPoint.matchIndex;
     const lastTime = Date.parse(lastPoint.time) || Date.now();
 
-    // Estimation de la cadence temporelle moyenne entre les parties
+    // Estimation de la cadence temporelle moyenne
     let cadenceMs = (24 * 60 * 60 * 1000) / 4;
     if (progression.length >= 5) {
       const firstTime = Date.parse(progression[0].time);
@@ -220,7 +231,7 @@ export function BrawlerProgressionChart({
       }
     }
 
-    // Jonction propre et fluide entre la courbe réelle et la prédiction
+    // Jonction fluide sans rupture
     const merged = [
       ...progression.map((p, idx) => ({
         ...p,
@@ -242,7 +253,7 @@ export function BrawlerProgressionChart({
 
   if (!progression || progression.length < 2) {
     return (
-      <div style={{ height }} className="grid place-items-center rounded-2xl bg-fill/60 px-6 text-center text-[13px] text-ink-2">
+      <div style={{ height }} className="grid place-items-center rounded-2xl bg-fill px-6 text-center text-[13px] text-ink-2">
         {emptyText}
       </div>
     );
@@ -267,8 +278,8 @@ export function BrawlerProgressionChart({
 
   return (
     <div className="space-y-3.5">
-      {/* ── Bandeau supérieur épuré : Paliers clés & Prochain objectif ── */}
-      <div className="flex flex-wrap items-center justify-between gap-2.5 rounded-xl bg-fill/40 px-3 py-2 text-[12px]">
+      {/* ── Bandeau supérieur 100% clair : Paliers clés & Prochain objectif ── */}
+      <div className="flex flex-wrap items-center justify-between gap-2.5 rounded-xl bg-fill/60 px-3.5 py-2 text-[12px]">
         <div className="flex flex-wrap items-center gap-2">
           <span className="flex items-center gap-1.5 font-semibold text-ink-2">
             <Sparkles className="size-3.5 text-amber-500" />
@@ -285,12 +296,11 @@ export function BrawlerProgressionChart({
                 <span
                   key={m}
                   className={clsx(
-                    'inline-flex items-center gap-1 rounded-md px-2 py-0.5 font-medium transition-all',
-                    meta.special
-                      ? 'border border-current/25 bg-white shadow-2xs dark:bg-zinc-800'
-                      : 'bg-white/70 text-ink-2 dark:bg-zinc-800/70',
+                    'inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1 text-[12px] font-medium shadow-2xs',
+                    meta.pillBg,
+                    meta.pillBorder,
+                    meta.pillText,
                   )}
-                  style={meta.special ? { color: meta.color } : undefined}
                   title={`Atteint à la partie ${passed.matchIndex} (${fmtDateTime(passed.time)})`}
                 >
                   <span className="text-[11px]">{meta.icon}</span>
@@ -304,12 +314,12 @@ export function BrawlerProgressionChart({
               return (
                 <span
                   key={m}
-                  className="inline-flex items-center gap-1.5 rounded-md border border-dashed border-amber-500/50 bg-amber-500/10 px-2 py-0.5 font-medium text-amber-600 dark:text-amber-400"
+                  className="inline-flex items-center gap-1.5 rounded-lg border border-dashed border-pink-300 bg-pink-50/80 px-2.5 py-1 text-[12px] font-medium text-pink-700 shadow-2xs"
                   title={`Prochain palier : estimé vers la partie ${predictedNextMilestone.matchIndex}`}
                 >
                   <span>{meta.icon}</span>
                   <span className="font-bold">{fmtInt(m)}</span>
-                  <span className="text-[10px] font-normal opacity-90">~P. {predictedNextMilestone.matchIndex}</span>
+                  <span className="text-[10px] font-normal opacity-85">~P. {predictedNextMilestone.matchIndex}</span>
                 </span>
               );
             }
@@ -318,7 +328,7 @@ export function BrawlerProgressionChart({
           })}
         </div>
 
-        {/* Bouton discret pour basculer l'affichage complet de tous les 500 si souhaité */}
+        {/* Bouton pour basculer l'affichage complet des 500 tr. */}
         <button
           type="button"
           onClick={() => setShowAllMilestones(!showAllMilestones)}
@@ -328,7 +338,7 @@ export function BrawlerProgressionChart({
         </button>
       </div>
 
-      {/* ── Légende minimaliste ── */}
+      {/* ── Légende claire et sobre ── */}
       <div className="flex flex-wrap items-center justify-between gap-2 text-[12px] text-ink-2">
         <div className="flex items-center gap-4">
           <div className="flex items-center gap-1.5">
@@ -338,7 +348,7 @@ export function BrawlerProgressionChart({
           {deltaTrophies > 0 && (
             <div className="flex items-center gap-1.5">
               <span className="h-0.5 w-3.5 rounded-full border-b-2 border-dashed border-amber-500" />
-              <span className="font-medium text-amber-600 dark:text-amber-400">
+              <span className="font-medium text-amber-600">
                 Prédiction (+{fmtInt(deltaTrophies)} tr.)
               </span>
             </div>
@@ -356,7 +366,7 @@ export function BrawlerProgressionChart({
       <div style={{ height }} role="img" aria-label="Progression des trophées par partie jouée">
         <ResponsiveContainer width="100%" height="100%">
           <LineChart data={chartData} margin={{ top: 10, right: 12, bottom: 4, left: 0 }}>
-            {/* Grille horizontale très discrète */}
+            {/* Grille horizontale très discrète et claire */}
             <CartesianGrid vertical={false} stroke={CHART.grid} />
 
             <XAxis
@@ -393,8 +403,8 @@ export function BrawlerProgressionChart({
                 const meta = crossedMilestone ? getMilestoneMeta(crossedMilestone) : null;
 
                 return (
-                  <div className="pointer-events-none min-w-[200px] max-w-[270px] rounded-xl bg-white/95 p-3 text-[12px] shadow-[0_8px_30px_rgba(0,0,0,0.12)] ring-1 ring-black/[0.08] backdrop-blur dark:bg-zinc-900/95 dark:ring-white/10">
-                    <div className="flex items-center justify-between border-b border-black/[0.06] pb-1.5 dark:border-white/10">
+                  <div className="pointer-events-none min-w-[200px] max-w-[270px] rounded-xl bg-white/98 p-3 text-[12px] shadow-[0_6px_24px_rgba(0,0,0,0.08)] ring-1 ring-black/[0.06] backdrop-blur">
+                    <div className="flex items-center justify-between border-b border-line pb-1.5">
                       <span className="font-semibold text-ink">
                         {isPred
                           ? `Partie estimée ${p.matchIndex}`
@@ -403,7 +413,7 @@ export function BrawlerProgressionChart({
                             : `Partie n° ${p.matchIndex}`}
                       </span>
                       {isPred ? (
-                        <span className="rounded-md bg-amber-500/10 px-1.5 py-0.5 text-[10px] font-semibold text-amber-600 dark:text-amber-400">
+                        <span className="rounded-md bg-amber-50 px-1.5 py-0.5 text-[10px] font-semibold text-amber-700 border border-amber-200">
                           Projection
                         </span>
                       ) : p.outcome ? (
@@ -442,14 +452,14 @@ export function BrawlerProgressionChart({
                     )}
 
                     {isPred && (
-                      <div className="mt-1 flex items-center justify-between text-amber-600 dark:text-amber-400">
+                      <div className="mt-1 flex items-center justify-between text-amber-700">
                         <span>Progression :</span>
                         <span className="font-bold tnum">+{fmtInt((p.prediction ?? 0) - current)} tr.</span>
                       </div>
                     )}
 
                     {!isPred && (p.mode || p.map) && (
-                      <div className="mt-2 rounded-lg bg-black/[0.03] px-2 py-1 text-[11px] text-ink-2 dark:bg-white/[0.05]">
+                      <div className="mt-2 rounded-lg bg-fill px-2 py-1 text-[11px] text-ink-2">
                         {p.mode && <span className="font-medium text-ink">{modeLabel(p.mode)}</span>}
                         {p.map && <span> · {mapLabel(p.map) ?? p.map}</span>}
                       </div>
@@ -457,8 +467,7 @@ export function BrawlerProgressionChart({
 
                     {meta && (
                       <div
-                        className="mt-2 flex items-center gap-1.5 rounded-lg bg-black/[0.04] px-2 py-1 text-[11px] font-semibold dark:bg-white/[0.06]"
-                        style={{ color: meta.color }}
+                        className={clsx('mt-2 flex items-center gap-1.5 rounded-lg border px-2 py-1 text-[11px] font-semibold', meta.pillBg, meta.pillBorder, meta.pillText)}
                       >
                         <span>{meta.icon}</span>
                         <span>Palier franchi : {meta.label}</span>
@@ -469,7 +478,7 @@ export function BrawlerProgressionChart({
               }}
             />
 
-            {/* ── UNE SEULE ligne de référence ciblée : le prochain objectif (évite la saturation) ── */}
+            {/* ── UNE SEULE ligne de référence ciblée : le prochain objectif ── */}
             {nextMilestone && nextMilestone <= maxTrophies + 50 && (
               <ReferenceLine
                 y={nextMilestone}
@@ -487,11 +496,11 @@ export function BrawlerProgressionChart({
               />
             )}
 
-            {/* ── Courbe Réelle (Traits épurés, marqueurs discrets uniquement sur 1000/2000/3000) ── */}
+            {/* ── Courbe Réelle (Traits épurés, marqueurs fins et légers sur 1000/2000/3000) ── */}
             <Line
               dataKey="trophies"
               type="linear"
-              stroke="#2563eb"
+              stroke="#0071e3"
               strokeWidth={2.2}
               strokeLinejoin="round"
               strokeLinecap="round"
@@ -503,18 +512,17 @@ export function BrawlerProgressionChart({
                 if (!milestone) return <circle key={`n-${payload.matchIndex}`} r={0} />;
 
                 const meta = getMilestoneMeta(milestone);
-                // Seuls les paliers spéciaux 1000, 2000, 3000 ont un repère visuel direct sur la courbe
                 if (meta.special) {
                   return (
                     <g key={`m-${payload.matchIndex}`} className="cursor-pointer">
-                      <circle cx={cx} cy={cy} r={5.5} fill={meta.color} stroke="#ffffff" strokeWidth={2} />
+                      <circle cx={cx} cy={cy} r={5} fill={meta.color} stroke="#ffffff" strokeWidth={2} />
                     </g>
                   );
                 }
 
                 return <circle key={`none-${payload.matchIndex}`} r={0} />;
               }}
-              activeDot={{ r: 4.5, fill: '#2563eb', stroke: '#ffffff', strokeWidth: 2 }}
+              activeDot={{ r: 4.5, fill: '#0071e3', stroke: '#ffffff', strokeWidth: 2 }}
             />
 
             {/* ── Courbe de Prédiction (+1 000 trophées, cap 3100) ── */}
@@ -522,24 +530,24 @@ export function BrawlerProgressionChart({
               <Line
                 dataKey="prediction"
                 type="linear"
-                stroke="#f59e0b"
+                stroke="#d97706"
                 strokeWidth={2}
                 strokeDasharray="4 4"
                 strokeLinejoin="round"
                 strokeLinecap="round"
                 isAnimationActive={false}
                 dot={false}
-                activeDot={{ r: 4.5, fill: '#f59e0b', stroke: '#ffffff', strokeWidth: 2 }}
+                activeDot={{ r: 4.5, fill: '#d97706', stroke: '#ffffff', strokeWidth: 2 }}
               />
             )}
           </LineChart>
         </ResponsiveContainer>
       </div>
 
-      {/* ── Résumé synthétique sous le graphique ── */}
+      {/* ── Résumé synthétique sous le graphique (100% clair) ── */}
       <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-3">
-        <div className="flex items-center gap-2.5 rounded-xl bg-fill/40 p-2.5">
-          <div className="grid size-8 place-items-center rounded-lg bg-blue-500/10 text-blue-600 dark:text-blue-400">
+        <div className="flex items-center gap-2.5 rounded-xl bg-fill p-2.5 border border-line">
+          <div className="grid size-8 place-items-center rounded-lg bg-blue-50 text-blue-600 border border-blue-100">
             <TrendingUp className="size-4" />
           </div>
           <div>
@@ -550,8 +558,8 @@ export function BrawlerProgressionChart({
           </div>
         </div>
 
-        <div className="flex items-center gap-2.5 rounded-xl bg-fill/40 p-2.5">
-          <div className="grid size-8 place-items-center rounded-lg bg-amber-500/10 text-amber-600 dark:text-amber-400">
+        <div className="flex items-center gap-2.5 rounded-xl bg-fill p-2.5 border border-line">
+          <div className="grid size-8 place-items-center rounded-lg bg-amber-50 text-amber-600 border border-amber-100">
             <Target className="size-4" />
           </div>
           <div>
@@ -565,8 +573,8 @@ export function BrawlerProgressionChart({
           </div>
         </div>
 
-        <div className="flex items-center gap-2.5 rounded-xl bg-fill/40 p-2.5">
-          <div className="grid size-8 place-items-center rounded-lg bg-purple-500/10 text-purple-600 dark:text-purple-400">
+        <div className="flex items-center gap-2.5 rounded-xl bg-fill p-2.5 border border-line">
+          <div className="grid size-8 place-items-center rounded-lg bg-purple-50 text-purple-600 border border-purple-100">
             <Flame className="size-4" />
           </div>
           <div>
