@@ -17,7 +17,6 @@ import { CHART } from '../lib/colors';
 import { fmtDateTime, fmtInt, fmtSigned } from '../lib/format';
 import { niceTicks } from './charts';
 
-const BRAWLER_MAX_CAP = 3100;
 const ALL_MILESTONES = [500, 1000, 1500, 2000, 2500, 3000] as const;
 const SPECIAL_MILESTONES = [1000, 2000, 3000] as const;
 const MIN_MATCHES_FOR_PREDICTION = 3;
@@ -106,12 +105,10 @@ function outcomeLabel(outcome?: Outcome | null) {
 export function BrawlerProgressionChart({
   progression,
   currentTrophies,
-  highestTrophies,
   height = 320,
   emptyText = 'Pas encore d’évolution enregistrée pour ce brawler.',
 }: BrawlerProgressionChartProps) {
   const current = currentTrophies ?? progression.at(-1)?.trophies ?? 0;
-  const highest = Math.max(highestTrophies ?? current, current);
 
   // Toggle pour afficher tous les paliers 500 si l'utilisateur le souhaite
   const [showAllMilestones, setShowAllMilestones] = useState(false);
@@ -138,8 +135,9 @@ export function BrawlerProgressionChart({
       }
     }
 
-    const upcoming = ALL_MILESTONES.filter((m) => m > highest && m <= BRAWLER_MAX_CAP);
-    const next = upcoming[0] ?? null;
+    // La prochaine cible majeure est le prochain millier
+    const nextThousand = Math.floor(current / 1000 + 1) * 1000;
+    const next = nextThousand;
 
     // Filtrage contextuel : on masque les anciens paliers de 500 pour ne garder que l'essentiel
     const lastPassed = passed[passed.length - 1]?.milestone;
@@ -156,12 +154,13 @@ export function BrawlerProgressionChart({
       nextMilestone: next,
       relevantMilestones: relevant,
     };
-  }, [progression, highest]);
+  }, [progression, current]);
 
-  // 2. Calcul de la cible (prochain millier de trophées) et de la courbe de prédiction
+  // 2. Calcul de la cible (prochain millier de trophées + 150 tr.) et de la courbe de prédiction
   const {
     chartData,
-    targetTrophies,
+    targetMilestone,
+    predictionTarget,
     deltaTrophies,
     gainRate,
     matchesNeeded,
@@ -169,10 +168,11 @@ export function BrawlerProgressionChart({
     predictionReason,
     predictedNextMilestone,
   } = useMemo(() => {
-    // La cible est le prochain millier de trophées (ex: 2000 si entre 1000 et 1999, 3000 si entre 2000 et 2999, cap à 3100)
+    // La prochaine cible est le prochain millier (ex: 2000 si entre 1000 et 1999, 3000 si entre 2000 et 2999)
     const nextThousand = Math.floor(current / 1000 + 1) * 1000;
-    const target = Math.min(nextThousand, BRAWLER_MAX_CAP);
-    const delta = Math.max(0, target - current);
+    // La prédiction va toujours 150 trophées au-delà de cette cible (ex: 3150 pour Doug)
+    const predTarget = nextThousand + 150;
+    const delta = Math.max(0, predTarget - current);
 
     const matchesWithChange = progression.filter((p) => p.matchIndex > 0 && p.change !== null);
 
@@ -180,7 +180,8 @@ export function BrawlerProgressionChart({
     if (matchesWithChange.length < MIN_MATCHES_FOR_PREDICTION) {
       return {
         chartData: progression,
-        targetTrophies: target,
+        targetMilestone: nextThousand,
+        predictionTarget: predTarget,
         deltaTrophies: delta,
         gainRate: null,
         matchesNeeded: null,
@@ -208,11 +209,12 @@ export function BrawlerProgressionChart({
       }
     }
 
-    // Si le rythme n'est pas positif (joueur en série de défaites ou neutre), on ne peut pas projeter l'atteinte du prochain millier
+    // Si le rythme n'est pas positif (joueur en série de défaites ou neutre), on ne peut pas projeter
     if (!isPositive || rate <= 0) {
       return {
         chartData: progression,
-        targetTrophies: target,
+        targetMilestone: nextThousand,
+        predictionTarget: predTarget,
         deltaTrophies: delta,
         gainRate: recentGain,
         matchesNeeded: null,
@@ -246,7 +248,7 @@ export function BrawlerProgressionChart({
       for (let i = 1; i <= steps; i++) {
         const prog = i / steps;
         const mIdx = Math.round(lastIndex + prog * matchesCount);
-        const predT = Math.min(target, Math.round(current + prog * delta));
+        const predT = i === steps ? predTarget : Math.round(current + prog * delta);
         const estTime = new Date(lastTime + (mIdx - lastIndex) * cadenceMs).toISOString();
 
         predictedPoints.push({
@@ -258,8 +260,8 @@ export function BrawlerProgressionChart({
           change: null,
         });
 
-        if (nextMilestone && predT >= nextMilestone && !predNext) {
-          predNext = { milestone: nextMilestone, matchIndex: mIdx, dateIso: estTime };
+        if (nextThousand && predT >= nextThousand && !predNext) {
+          predNext = { milestone: nextThousand, matchIndex: mIdx, dateIso: estTime };
         }
       }
     }
@@ -275,7 +277,8 @@ export function BrawlerProgressionChart({
 
     return {
       chartData: merged,
-      targetTrophies: target,
+      targetMilestone: nextThousand,
+      predictionTarget: predTarget,
       deltaTrophies: delta,
       gainRate: rate,
       matchesNeeded: matchesCount,
@@ -283,7 +286,7 @@ export function BrawlerProgressionChart({
       predictionReason: null,
       predictedNextMilestone: predNext,
     };
-  }, [progression, current, nextMilestone]);
+  }, [progression, current]);
 
   if (!progression || progression.length < 2) {
     return (
@@ -302,7 +305,7 @@ export function BrawlerProgressionChart({
     .filter((v): v is number => v !== null && !Number.isNaN(v));
 
   const minTrophies = Math.max(0, Math.min(...allTrophies));
-  const maxTrophies = Math.max(...allTrophies, targetTrophies);
+  const maxTrophies = Math.max(...allTrophies, predictionTarget);
   const yTicks = niceTicks(minTrophies, maxTrophies, 4);
 
   const maxMatchIndex = chartData[chartData.length - 1]?.matchIndex ?? progression.length;
@@ -389,7 +392,7 @@ export function BrawlerProgressionChart({
             <div className="flex items-center gap-1.5">
               <span className="h-0.5 w-3.5 rounded-full border-b-2 border-dashed border-amber-500" />
               <span className="font-medium text-amber-600">
-                Prédiction (+{fmtInt(deltaTrophies)} tr. vers {fmtInt(targetTrophies)})
+                Prédiction (+{fmtInt(deltaTrophies)} tr. jusqu’à {fmtInt(predictionTarget)} tr.)
               </span>
             </div>
           )}
@@ -533,16 +536,16 @@ export function BrawlerProgressionChart({
             />
 
             {/* ── Ligne de référence vers le prochain millier ciblé ── */}
-            {targetTrophies && targetTrophies <= maxTrophies + 50 && (
+            {targetMilestone && targetMilestone <= maxTrophies + 50 && (
               <ReferenceLine
-                y={targetTrophies}
-                stroke={getMilestoneMeta(targetTrophies).color}
+                y={targetMilestone}
+                stroke={getMilestoneMeta(targetMilestone).color}
                 strokeWidth={1.5}
                 strokeDasharray="4 4"
                 label={{
-                  value: `Objectif ${getMilestoneMeta(targetTrophies).badge}`,
+                  value: `Objectif ${getMilestoneMeta(targetMilestone).badge}`,
                   position: 'insideTopRight',
-                  fill: getMilestoneMeta(targetTrophies).color,
+                  fill: getMilestoneMeta(targetMilestone).color,
                   fontSize: 11,
                   fontWeight: 600,
                   offset: 4,
@@ -579,7 +582,7 @@ export function BrawlerProgressionChart({
               activeDot={{ r: 4.5, fill: '#0071e3', stroke: '#ffffff', strokeWidth: 2 }}
             />
 
-            {/* ── Courbe de Prédiction (uniquement si historique suffisant et rythme positif) ── */}
+            {/* ── Courbe de Prédiction (+150 tr. au-delà du prochain millier) ── */}
             {hasPrediction && deltaTrophies > 0 && (
               <Line
                 dataKey="prediction"
@@ -623,11 +626,11 @@ export function BrawlerProgressionChart({
             <Target className="size-4" />
           </div>
           <div>
-            <div className="text-[11px] font-medium text-ink-3">Prochain millier</div>
+            <div className="text-[11px] font-medium text-ink-3">Objectif (+150 tr.)</div>
             <div className="text-[13px] font-semibold text-ink tnum">
-              {fmtInt(targetTrophies)} tr.{' '}
+              {fmtInt(predictionTarget)} tr.{' '}
               <span className="text-[11px] font-normal text-ink-2">
-                ({targetTrophies === BRAWLER_MAX_CAP ? 'Cap max' : `+${fmtInt(deltaTrophies)} tr.`})
+                (palier {fmtInt(targetMilestone)} tr. + 150)
               </span>
             </div>
           </div>
@@ -642,12 +645,10 @@ export function BrawlerProgressionChart({
             <div className="text-[13px] font-semibold text-ink tnum">
               {!hasPrediction ? (
                 <span className="text-[12px] font-normal text-ink-3">Indisponible</span>
-              ) : deltaTrophies === 0 ? (
-                'Cap max atteint !'
               ) : (
                 <>
                   ≈ {fmtInt(matchesNeeded)}{' '}
-                  <span className="text-[11px] font-normal text-ink-2">pour la cible</span>
+                  <span className="text-[11px] font-normal text-ink-2">jusqu’à {fmtInt(predictionTarget)} tr.</span>
                 </>
               )}
             </div>

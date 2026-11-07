@@ -88,7 +88,7 @@ export function BrawlerDetailPage() {
       <ChartCard
         className="mt-4"
         title="Progression des trophées"
-        subtitle="Axe X en parties jouées · Survol : date et heure réelles · Prédiction vers le prochain millier"
+        subtitle="Axe X en parties jouées · Survol : date et heure réelles · Prédiction : prochain millier + 150 tr."
         table={{
           columns: ['Partie', 'Date & heure', 'Trophées', 'Gain'],
           rows: data.matchProgression?.length
