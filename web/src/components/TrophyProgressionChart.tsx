@@ -188,13 +188,17 @@ export function TrophyProgressionChart({
             />
 
             <Line
+              key={`trophies-${progression.length}-${progression[0]?.time}`}
               dataKey="trophies"
               type="linear"
               stroke="#0071e3"
               strokeWidth={2.2}
               strokeLinejoin="round"
               strokeLinecap="round"
-              isAnimationActive={false}
+              isAnimationActive={true}
+              animationDuration={1100}
+              animationEasing="ease-out"
+              animationBegin={120}
               dot={false}
               activeDot={{ r: 4.5, fill: '#0071e3', stroke: '#ffffff', strokeWidth: 2 }}
             />

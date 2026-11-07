@@ -555,13 +555,17 @@ export function BrawlerProgressionChart({
 
             {/* ── Courbe Réelle (Traits épurés) ── */}
             <Line
+              key={`brawler-trophies-${progression.length}`}
               dataKey="trophies"
               type="linear"
               stroke="#0071e3"
               strokeWidth={2.2}
               strokeLinejoin="round"
               strokeLinecap="round"
-              isAnimationActive={false}
+              isAnimationActive={true}
+              animationDuration={1100}
+              animationEasing="ease-out"
+              animationBegin={120}
               dot={(props: { cx?: number; cy?: number; payload?: { matchIndex: number; isPrediction?: boolean } }) => {
                 const { cx, cy, payload } = props;
                 if (!cx || !cy || !payload || payload.isPrediction) return <circle key={`e-${props.payload?.matchIndex}`} r={0} />;
@@ -585,6 +589,7 @@ export function BrawlerProgressionChart({
             {/* ── Courbe de Prédiction (+150 tr. au-delà du prochain millier) ── */}
             {hasPrediction && deltaTrophies > 0 && (
               <Line
+                key={`brawler-pred-${progression.length}`}
                 dataKey="prediction"
                 type="linear"
                 stroke="#d97706"
@@ -592,7 +597,10 @@ export function BrawlerProgressionChart({
                 strokeDasharray="4 4"
                 strokeLinejoin="round"
                 strokeLinecap="round"
-                isAnimationActive={false}
+                isAnimationActive={true}
+                animationDuration={900}
+                animationEasing="ease-out"
+                animationBegin={400}
                 dot={false}
                 activeDot={{ r: 4.5, fill: '#d97706', stroke: '#ffffff', strokeWidth: 2 }}
               />
