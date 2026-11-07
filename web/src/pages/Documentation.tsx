@@ -442,9 +442,7 @@ const SECTIONS: Section[] = [
             partie.
           </li>
           <li>
-            <strong>Évolution des trophées</strong> : les mesures du dashboard, complétées par les combats enregistrés. Avant
-            la toute première mesure, la courbe est reconstituée à partir des combats connus, et le sous-titre du graphique le
-            signale (voir <PageLink to="calcul-historique-trophees">calcul</PageLink>).
+            <strong>Évolution des trophées</strong> : progression combat par combat sur l’axe X (parties jouées, sans temps mort), avec les mesures du dashboard complétées par les combats enregistrés. Le survol (hover) affiche la date, l’heure exacte, les trophées totaux, la variation, le brawler joué et la map (voir <PageLink to="calcul-historique-trophees">calcul</PageLink>).
           </li>
           <li>
             <strong>Variation par jour</strong> : clôture du jour moins clôture précédente, en heure locale.
