@@ -23,6 +23,8 @@ import { Card, CardHeader } from './ui';
 
 export { BrawlerProgressionChart } from './BrawlerProgressionChart';
 export type { BrawlerProgressionChartProps } from './BrawlerProgressionChart';
+export { TrophyProgressionChart } from './TrophyProgressionChart';
+export type { TrophyProgressionChartProps } from './TrophyProgressionChart';
 
 // Graphiques sobres : traits fins de 2 px, grille en filets, info-bulle avec
 // réticule, et une vue « tableau » pour chaque graphique.

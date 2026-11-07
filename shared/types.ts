@@ -365,12 +365,25 @@ export interface PrestigeCandidateDto {
   currentWinStreak: number | null;
 }
 
+export interface TrophyMatchPoint {
+  matchIndex: number;
+  time: string;
+  trophies: number;
+  change: number | null;
+  outcome?: Outcome | null;
+  brawlerId?: number | null;
+  brawlerName?: string | null;
+  mode?: string | null;
+  map?: string | null;
+}
+
 export interface TrophiesResponse {
   period: Period;
   current: number | null;
   highest: number | null;
   delta: number | null;
   series: SeriesPoint[];
+  matchProgression?: TrophyMatchPoint[];
   /** Date du premier relevé du dashboard quand la courbe a été reconstituée avant lui à partir des combats. */
   reconstructedUntil: string | null;
   daily: DailyDelta[];

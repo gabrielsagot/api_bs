@@ -1,8 +1,9 @@
 import clsx from 'clsx';
 import { Link } from 'react-router';
+import { mapLabel, modeLabel } from '../../../shared/labels';
 import type { PrestigeCandidateDto, TrophyBrawlerRow } from '../../../shared/types';
 import { BrawlerAvatar } from '../components/avatars';
-import { ChartCard, DailyDeltaChart, TimeSeriesChart } from '../components/charts';
+import { ChartCard, DailyDeltaChart, TimeSeriesChart, TrophyProgressionChart } from '../components/charts';
 import { DataTable, type Column } from '../components/tables';
 import {
   Card,
@@ -131,16 +132,33 @@ export function TrophiesPage() {
           className="mt-4"
           title="Évolution des trophées"
           subtitle={
-            data.reconstructedUntil
-              ? `Mesures du dashboard depuis le ${fmtDateTime(data.reconstructedUntil)} ; avant, courbe reconstituée à partir des combats enregistrés.`
-              : 'Mesures prises par le dashboard, complétées par les combats enregistrés.'
+            data.matchProgression?.length
+              ? `Axe X en parties jouées · Survol : date et heure réelles (${data.trophyGames.games} combats sur la période)`
+              : data.reconstructedUntil
+                ? `Mesures du dashboard depuis le ${fmtDateTime(data.reconstructedUntil)} ; avant, courbe reconstituée à partir des combats enregistrés.`
+                : 'Mesures prises par le dashboard, complétées par les combats enregistrés.'
           }
           table={{
-            columns: ['Date', 'Trophées'],
-            rows: [...data.series].reverse().map((p) => [fmtDateTime(p.t), fmtInt(p.v)]),
+            columns: data.matchProgression?.length
+              ? ['Partie', 'Date & heure', 'Trophées', 'Gain', 'Brawler', 'Mode & map']
+              : ['Date', 'Trophées'],
+            rows: data.matchProgression?.length
+              ? [...data.matchProgression].reverse().map((p) => [
+                  p.matchIndex === 0 ? 'Départ' : `Partie ${p.matchIndex}`,
+                  fmtDateTime(p.time),
+                  fmtInt(p.trophies),
+                  p.change !== null ? fmtSigned(p.change) : '—',
+                  p.brawlerName ?? '—',
+                  p.mode ? `${modeLabel(p.mode)}${p.map ? ` · ${mapLabel(p.map) ?? p.map}` : ''}` : '—',
+                ])
+              : [...data.series].reverse().map((p) => [fmtDateTime(p.t), fmtInt(p.v)]),
           }}
         >
-          <TimeSeriesChart points={data.series} height={280} />
+          {data.matchProgression && data.matchProgression.length >= 2 ? (
+            <TrophyProgressionChart progression={data.matchProgression} currentTrophies={data.current} height={280} />
+          ) : (
+            <TimeSeriesChart points={data.series} height={280} />
+          )}
         </ChartCard>
 
         <ChartCard

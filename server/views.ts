@@ -20,6 +20,7 @@ import type {
   RotationResponse,
   SeriesPoint,
   TrophiesResponse,
+  TrophyMatchPoint,
   WinLoss,
 } from '../shared/types';
 import type { CatalogService, RotationService } from './catalog';
@@ -283,12 +284,48 @@ export function trophiesView({ db }: ViewDeps, row: PlayerRow, period: Period, n
   const startStates = since ? brawlerStatesAt(db, row.tag, since) : new Map();
   const firstStates = firstBrawlerStates(db, row.tag);
 
+  const matchProgression: TrophyMatchPoint[] = [];
+  if (trophyBattles.length > 0) {
+    const sampleMap = new Map(samples.map((s) => [s.taken_at, s.trophies]));
+    const first = trophyBattles[0];
+    const firstTrophies = sampleMap.get(first.battleTime) ?? baseline?.trophies;
+    let running = firstTrophies !== undefined ? firstTrophies - (first.trophyChange ?? 0) : (baseline?.trophies ?? 0);
+
+    matchProgression.push({
+      matchIndex: 0,
+      time: baseline?.taken_at ?? first.battleTime,
+      trophies: running,
+      change: null,
+    });
+
+    for (let i = 0; i < trophyBattles.length; i++) {
+      const b = trophyBattles[i];
+      if (sampleMap.has(b.battleTime)) {
+        running = sampleMap.get(b.battleTime)!;
+      } else {
+        running += (b.trophyChange ?? 0);
+      }
+      matchProgression.push({
+        matchIndex: i + 1,
+        time: b.battleTime,
+        trophies: running,
+        change: b.trophyChange,
+        outcome: b.outcome,
+        brawlerId: b.brawlerId,
+        brawlerName: b.brawlerName ? titleCase(b.brawlerName) : null,
+        mode: b.mode,
+        map: b.map,
+      });
+    }
+  }
+
   return {
     period,
     current,
     highest: profile?.highestTrophies ?? null,
     delta: current !== null && reference ? current - reference.trophies : null,
     series: trophySeries(samples, baseline, since, new Date(now).toISOString()),
+    matchProgression,
     reconstructedUntil,
     daily: dailyDeltas(samples, baseline),
     trophyGames: { ...games, trophyNet, avgPerGame: trophyBattles.length ? trophyNet / trophyBattles.length : null },

@@ -317,4 +317,49 @@ describe('progression de brawler', () => {
     expect(detail!.matchProgression[2].trophies).toBe(1025);
     expect(detail!.matchProgression[3].trophies).toBe(1050);
   });
+
+  it('génère matchProgression pour la vue Trophées', async () => {
+    const { Db } = await import('../server/db');
+    const { trophiesView } = await import('../server/views');
+    const db = new Db(':memory:');
+    db.run(
+      `INSERT INTO players (tag, name, added_at, profile_json) VALUES (?, ?, ?, ?)`,
+      [
+        '#TEST_TR',
+        'JoueurTr',
+        '2026-11-01T09:00:00.000Z',
+        JSON.stringify({
+          tag: '#TEST_TR',
+          name: 'JoueurTr',
+          trophies: 50050,
+          highestTrophies: 50050,
+          brawlers: [],
+        }),
+      ],
+    );
+    db.run(
+      `INSERT INTO player_snapshots (tag, taken_at, trophies, highest_trophies, exp_level, exp_points, victories_3v3, solo_victories, duo_victories, brawlers_owned, power11, gadgets, star_powers, hyper_charges, gears, ranked_elo, ranked_rank)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      ['#TEST_TR', '2026-11-01T10:15:00.000Z', 50050, 50050, 100, 1000, 10, 5, 2, 50, 20, 30, 30, 10, 15, 0, 0],
+    );
+    const times = ['2026-11-01T10:00:00.000Z', '2026-11-01T10:10:00.000Z'];
+    const changes = [20, 30];
+    for (let i = 0; i < 2; i++) {
+      db.run(
+        `INSERT INTO battles (tag, battle_time, mode, type, brawler_id, brawler_name, brawler_trophies, trophy_change, star_player, participants_json, raw_json)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        ['#TEST_TR', times[i], 'gemGrab', 'ranked', 10, 'SHELLY', 500, changes[i], 0, '[]', '{}'],
+      );
+    }
+    const row = db.get<any>('SELECT * FROM players WHERE tag = ?', ['#TEST_TR']);
+    const res = trophiesView({ db } as any, row, 'all', Date.parse('2026-11-01T12:00:00.000Z'));
+    expect(res.matchProgression).toBeDefined();
+    expect(res.matchProgression).toHaveLength(3); // 0 (départ) + 2 combats
+    expect(res.matchProgression![0].matchIndex).toBe(0);
+    expect(res.matchProgression![0].trophies).toBe(50000);
+    expect(res.matchProgression![1].matchIndex).toBe(1);
+    expect(res.matchProgression![1].trophies).toBe(50020);
+    expect(res.matchProgression![2].matchIndex).toBe(2);
+    expect(res.matchProgression![2].trophies).toBe(50050);
+  });
 });
