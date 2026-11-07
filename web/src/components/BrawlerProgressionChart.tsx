@@ -1,5 +1,5 @@
 import clsx from 'clsx';
-import { Crown, Flame, Sparkles, Star, Target, TrendingUp, Trophy } from 'lucide-react';
+import { Flame, Sparkles, Target, TrendingUp } from 'lucide-react';
 import { useMemo } from 'react';
 import {
   CartesianGrid,
@@ -240,7 +240,10 @@ export function BrawlerProgressionChart({
 
   // Ticks et limites des axes
   const allTrophies = chartData
-    .map((d) => (d.isPrediction ? (d as { prediction: number }).prediction : d.trophies))
+    .map((d) => {
+      const pred = (d as { prediction?: number | null }).prediction;
+      return typeof pred === 'number' ? pred : d.trophies;
+    })
     .filter((v): v is number => v !== null && !Number.isNaN(v));
 
   const minTrophies = Math.max(0, Math.min(...allTrophies));

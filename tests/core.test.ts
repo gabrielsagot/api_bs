@@ -307,7 +307,7 @@ describe('progression de brawler', () => {
     }
     const row = db.get<any>('SELECT * FROM players WHERE tag = ?', ['#TEST']);
     const catalog = { get: () => ({ brawlers: [{ id: 10, name: 'SHELLY', rarity: 'common' }] }) };
-    const detail = brawlerDetailView({ db, catalog: catalog as any }, row, 10);
+    const detail = brawlerDetailView({ db, catalog: catalog as any, rotation: {} as any }, row, 10);
     expect(detail).not.toBeNull();
     expect(detail!.matchProgression).toHaveLength(4); // 0 (départ) + 3 parties
     expect(detail!.matchProgression[0].matchIndex).toBe(0);
