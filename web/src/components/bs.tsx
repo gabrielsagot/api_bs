@@ -1,8 +1,11 @@
 import clsx from 'clsx';
 import type { CSSProperties, ReactNode } from 'react';
-import { fameLabel, modeLabel, rarityLabel, tierName } from '../../../shared/labels';
-import { fameStyle, modeColor, nameStyleCss, rarityColor, readableColor, tierColor } from '../lib/bs';
+import { getPlanetImageUrl } from '../../../shared/fame';
+import { fameLabel, modeLabel, parseFame, rarityLabel, tierName } from '../../../shared/labels';
+import { fameStyle, modeColor, nameStyleCss, rarityColor, readableColor, tierTextColor } from '../lib/bs';
 import { ModeIcon, RankIcon } from './avatars';
+
+export { tierTextColor };
 
 // Éléments d'affichage aux couleurs de Brawl Stars, en restant sobres :
 // pas de fond coloré, seulement la couleur du texte ou une pastille.
@@ -34,22 +37,25 @@ export function PlayerName({
   );
 }
 
-/** Rang Ranked avec son emblème : « [emblème] Mythique III ». */
+/** Rang Ranked avec son emblème et sa couleur officielle : « [emblème] Mythique III ». */
 export function TierLabel({
   tier,
   size = 18,
   className,
   suffix,
+  colorized = true,
 }: {
   tier: number | null | undefined;
   size?: number;
   className?: string;
   suffix?: ReactNode;
+  colorized?: boolean;
 }) {
+  const color = colorized ? tierTextColor(tier) : undefined;
   return (
     <span className={clsx('inline-flex min-w-0 max-w-full items-center gap-1.5 align-middle', className)}>
       <RankIcon tier={tier} size={size} />
-      <span className="truncate">
+      <span className="truncate font-semibold" style={color ? { color } : undefined}>
         {tierName(tier)}
         {suffix}
       </span>
@@ -57,30 +63,45 @@ export function TierLabel({
   );
 }
 
-/** Couleur de texte lisible pour un rang (utile pour les grands titres). */
-export function tierTextColor(tier: number | null | undefined): string | undefined {
-  const color = tierColor(tier);
-  return color ? readableColor(color, 3) : undefined;
-}
-
-/** Palier de gloire traduit, avec une pastille aux couleurs de son emblème. */
-export function FameBadge({ name, fame, className }: { name: string | null | undefined; fame?: number | null; className?: string }) {
+/** Palier de gloire traduit avec l'icône planétaire officielle du jeu. */
+export function FameBadge({
+  name,
+  fame,
+  className,
+  iconSize = 16,
+}: {
+  name: string | null | undefined;
+  fame?: number | null;
+  className?: string;
+  iconSize?: number;
+}) {
   const label = fameLabel(name);
   if (!label) return null;
+  const { tier } = parseFame(name);
   const style = fameStyle(name);
+  const imageUrl = getPlanetImageUrl(tier);
+
   return (
     <span
       className={clsx('inline-flex items-center gap-1.5 whitespace-nowrap', className)}
       title={fame ? `${fame.toLocaleString('fr-FR')} points de gloire` : undefined}
     >
-      {style && (
+      {imageUrl ? (
+        <img
+          src={imageUrl}
+          alt=""
+          className="shrink-0 object-contain select-none filter drop-shadow-xs"
+          style={{ width: iconSize, height: iconSize }}
+          draggable={false}
+        />
+      ) : style ? (
         <span
           className="size-2.5 shrink-0 rounded-full"
           style={{ background: style.fill, boxShadow: `0 0 0 1.5px ${style.ring}` }}
           aria-hidden
         />
-      )}
-      <span className="font-medium" style={style ? { color: readableColor(style.text, 4.5) } : undefined}>
+      ) : null}
+      <span className="font-semibold" style={style ? { color: readableColor(style.text, 4.5) } : undefined}>
         {label}
       </span>
     </span>

@@ -24,6 +24,7 @@ Il tourne sur ton Mac et s'ouvre aussi sur ton téléphone, sur le même Wi-Fi.
   adversaire, sessions de jeu.
 - **Brawlers** : collection complète, gadgets / star powers / hypercharges / gears / buffies, rareté, coût restant pour
   tout maxer et **priorités d'amélioration** d'après ce que tu joues vraiment.
+- **Gloire** : parcours cosmique de la Voie de la Gloire (« Fame Road ») planète après planète (Terre, Lune, Mars, Saturne, Soleil, Météore, Alien, Starr Force), progression en temps réel des crédits et récompenses débloquées (fonds de cartes de combat, avatars, émotes de collection), avec simulateur de Battle Card.
 - **Rotation** : les maps du moment, avec les brawlers qui te réussissent le mieux dessus d'après ton historique.
 - **Objectifs** : trophées, rang Ranked, brawler, niveau 11… avec une date d'arrivée estimée d'après ton rythme.
 - **Comparer** : tes autres comptes et ceux de tes potes, côte à côte.

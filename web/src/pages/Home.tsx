@@ -1,3 +1,5 @@
+import clsx from 'clsx';
+import { Users } from 'lucide-react';
 import { Link } from 'react-router';
 import { tierName } from '../../../shared/labels';
 import type { StreakDto } from '../../../shared/types';
@@ -5,11 +7,13 @@ import { SetRow } from '../components/battles';
 import { GoalsCard, SessionCard } from '../components/cards';
 import { Sparkline } from '../components/charts';
 import { PlayerIcon, RankIcon } from '../components/avatars';
-import { FameBadge, PlayerName, TierLabel } from '../components/bs';
+import { FameBadge, PlayerName, TierLabel, tierTextColor } from '../components/bs';
+import { DiagonalArrowIcon } from '../components/fame';
 import { NextTierProgress, RankedProgressCard } from '../components/ranked';
 import { BreakdownTable } from '../components/tables';
-import { Card, CardHeader, Delta, DocLink, EmptyState, ErrorState, LoadingState, PageHeader, Refetching, StatTile } from '../components/ui';
-import { useOverview } from '../lib/api';
+import { AnimatedKpiValue, Card, CardHeader, Delta, DocLink, EmptyState, ErrorState, LoadingState, PageHeader, Refetching, StatTile } from '../components/ui';
+import { useOverview, usePlayers } from '../lib/api';
+import { seriesColor } from '../lib/colors';
 import { fmtInt, fmtPct, fmtPts, fmtSigned } from '../lib/format';
 import { useNow, usePlayerSlug } from '../lib/hooks';
 
@@ -25,6 +29,7 @@ export function streakLabel(streak: StreakDto, unit: 'set' | 'manche'): { value:
 export function HomePage() {
   const slug = usePlayerSlug();
   const { data, error, isLoading, isPlaceholderData } = useOverview(slug);
+  const players = usePlayers().data ?? [];
   const now = useNow();
   if (isLoading) return <LoadingState />;
   if (error || !data) return <ErrorState error={error} />;
@@ -53,15 +58,78 @@ export function HomePage() {
             {player.fameTierName && (
               <>
                 <span>·</span>
-                <FameBadge name={player.fameTierName} fame={player.fame} />
+                <Link
+                  to={`/p/${player.slug}/gloire`}
+                  className="group inline-flex items-center gap-1.5 rounded-lg px-2 py-0.5 -mx-1 text-ink-2 transition-all hover:bg-black/5 hover:text-ink focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-accent"
+                  title="Voir la Voie de la Gloire (Fame Road)"
+                >
+                  <FameBadge name={player.fameTierName} fame={player.fame} iconSize={18} />
+                  <DiagonalArrowIcon className="size-3 text-ink-3 transition-transform duration-150 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 group-hover:text-accent" />
+                </Link>
               </>
             )}
           </span>
         }
       />
 
+      {players.length > 1 && (
+        <div className="mb-6 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-line/80 bg-surface/90 px-3.5 py-2.5 shadow-[0_1px_3px_rgba(0,0,0,0.03)] ring-1 ring-black/[0.03]">
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="text-[12px] font-semibold uppercase tracking-wider text-ink-3">
+              Compte suivi :
+            </span>
+            <div className="flex flex-wrap items-center gap-1.5">
+              {players.map((p) => {
+                const isSelected = p.slug === slug;
+                return (
+                  <Link
+                    key={p.slug}
+                    to={`/p/${p.slug}`}
+                    className={clsx(
+                      'group inline-flex items-center gap-2 rounded-full py-1 pl-1 pr-3 text-[13px] font-medium transition-all duration-150',
+                      isSelected
+                        ? 'bg-accent text-white shadow-xs font-semibold'
+                        : 'bg-fill text-ink-2 hover:bg-[#e5e5ea] hover:text-ink',
+                    )}
+                  >
+                    <div
+                      className="rounded-full p-[1px]"
+                      style={{
+                        background: isSelected ? 'rgba(255,255,255,0.85)' : seriesColor(p.colorSlot),
+                      }}
+                    >
+                      <div className="rounded-full bg-surface p-[0.5px]">
+                        <PlayerIcon iconId={p.iconId} name={p.name} size={22} />
+                      </div>
+                    </div>
+                    <span className="truncate max-w-[140px]">{p.name}</span>
+                    {p.trophies !== null && (
+                      <span
+                        className={clsx(
+                          'text-[11px] tnum font-normal',
+                          isSelected ? 'text-white/80' : 'text-ink-3',
+                        )}
+                      >
+                        {fmtInt(p.trophies)}
+                      </span>
+                    )}
+                  </Link>
+                );
+              })}
+            </div>
+          </div>
+          <Link
+            to="/comparer"
+            className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[12px] font-medium text-ink-2 transition-colors hover:bg-fill hover:text-ink"
+          >
+            <Users className="size-3.5 text-accent" />
+            <span>Comparer les comptes</span>
+          </Link>
+        </div>
+      )}
+
       <div className="grid gap-4 lg:grid-cols-12">
-        <Card className="flex flex-col justify-between lg:col-span-5">
+        <Card data-kpi className="flex flex-col justify-between lg:col-span-5">
           <div className="flex items-baseline justify-between gap-2 text-[13px] font-medium text-ink-2">
             <span>Rang Ranked</span>
             {ranked.profile.seasonId !== null && <span className="text-ink-3">Saison {ranked.profile.seasonId}</span>}
@@ -70,11 +138,16 @@ export function HomePage() {
             <>
               <div className="mt-3 flex items-center gap-3 text-[36px] font-semibold leading-none tracking-[-0.03em] sm:text-[44px]">
                 <RankIcon tier={ranked.currentTier} size={52} className="-my-1" />
-                <span className="min-w-0 whitespace-nowrap">{tierName(ranked.currentTier)}</span>
+                <span
+                  className="min-w-0 whitespace-nowrap font-bold"
+                  style={{ color: tierTextColor(ranked.currentTier) }}
+                >
+                  {tierName(ranked.currentTier)}
+                </span>
               </div>
               {ranked.profile.elo !== null && (
                 <div className="mt-3 flex flex-wrap items-baseline gap-x-2 text-[15px]">
-                  <span className="font-semibold">{fmtInt(ranked.profile.elo)} points</span>
+                  <span className="font-semibold"><AnimatedKpiValue value={`${fmtInt(ranked.profile.elo)} points`} /></span>
                   <Delta value={ranked.profile.eloDelta} className="text-[13px]">
                     {fmtSigned(ranked.profile.eloDelta)} sur 30 j
                   </Delta>
@@ -204,7 +277,7 @@ export function HomePage() {
       <div className="mt-4 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
         <SessionCard session={lastSession} now={now} />
         <GoalsCard goals={goals} slug={slug} />
-        <Card>
+        <Card data-kpi>
           <CardHeader
             title="Trophées"
             subtitle="7 derniers jours"
@@ -215,7 +288,7 @@ export function HomePage() {
             }
           />
           <div className="flex items-baseline gap-3">
-            <span className="text-[28px] font-semibold leading-none tracking-[-0.02em]">{fmtInt(trophies.current)}</span>
+            <span className="text-[28px] font-semibold leading-none tracking-[-0.02em]"><AnimatedKpiValue value={fmtInt(trophies.current)} /></span>
             <Delta value={trophies.delta24h} className="text-[13px]">
               {fmtSigned(trophies.delta24h)} sur 24 h
             </Delta>

@@ -1,9 +1,9 @@
 import { useState } from 'react';
-import { tierName } from '../../../shared/labels';
+import { mapLabel, tierName } from '../../../shared/labels';
 import type { DuoRow, RankedQueue } from '../../../shared/types';
 import { BrawlerAvatar } from '../components/avatars';
 import { SetRow } from '../components/battles';
-import { ModeLabel, TierLabel } from '../components/bs';
+import { ModeLabel, TierLabel, tierTextColor } from '../components/bs';
 import { EloChange, NextTierProgress, RankedProgressCard } from '../components/ranked';
 import { DataTable, type Column } from '../components/tables';
 import { BreakdownTable } from '../components/tables';
@@ -88,7 +88,16 @@ export function RankedPage() {
               <StatTile
                 label="Rang actuel"
                 value={<TierLabel tier={data.currentTier} size={26} className="max-w-full gap-2 text-[22px] xl:text-[25px]" />}
-                sub={data.startTier !== null ? `au départ : ${tierName(data.startTier)}` : undefined}
+                sub={
+                  data.startTier !== null ? (
+                    <span>
+                      au départ :{' '}
+                      <span className="font-medium" style={{ color: tierTextColor(data.startTier) }}>
+                        {tierName(data.startTier)}
+                      </span>
+                    </span>
+                  ) : undefined
+                }
               />
               <StatTile
                 className="col-span-2 md:col-span-1"
@@ -187,7 +196,7 @@ export function RankedPage() {
                     <div key={`${pick.mode}|${pick.map}`} className="rounded-2xl bg-fill/70 p-4">
                       <div className="flex items-baseline justify-between gap-2">
                         <div className="min-w-0">
-                          <div className="truncate text-[14px] font-semibold">{pick.map}</div>
+                          <div className="truncate text-[14px] font-semibold">{mapLabel(pick.map)}</div>
                           <ModeLabel mode={pick.mode} size={14} className="flex text-[12px] text-ink-2" />
                         </div>
                         <div className="shrink-0 text-right text-[12px] text-ink-2">

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { battleCategory, tierName, titleCase } from '../shared/labels';
+import { battleCategory, mapLabel, tierName, titleCase } from '../shared/labels';
 import { normalizeTag } from '../shared/tags';
 import { currentStreak, frequentAllies, longestWinStreak, shrunkWinRate } from '../server/stats/aggregate';
 import { levelCostToMax } from '../server/stats/costs';
@@ -39,6 +39,67 @@ describe('libellés', () => {
     expect(tierName(8)).toBe('Or II');
     expect(tierName(22)).toBe('Pro');
     expect(tierName(640)).toBe('640');
+  });
+
+  it('traduit les maps du jeu selon leurs vraies versions officielles en français', () => {
+    // Razzia de gemmes
+    expect(mapLabel('Hard Rock Mine')).toBe('Mine hard-rock');
+    expect(mapLabel('Double Swoosh')).toBe('Bruissements');
+    expect(mapLabel('Gem Fort')).toBe('Fort de gemmes');
+    expect(mapLabel('Undermine')).toBe('Tunnel de mine');
+    expect(mapLabel('Crystal Arcade')).toBe('Arcade de cristal');
+
+    // Brawlball
+    expect(mapLabel('Center Stage')).toBe('Milieu de scène');
+    expect(mapLabel('Sneaky Fields')).toBe('Champs sournois');
+    expect(mapLabel('Super Beach')).toBe('Super plage');
+    expect(mapLabel('Beach Ball')).toBe('Ballon de plage');
+    expect(mapLabel('Pinball Dreams')).toBe('Flipper');
+    expect(mapLabel('Triple Dribble')).toBe('Triple dribble');
+
+    // Braquage
+    expect(mapLabel('Safe Zone')).toBe('Zone sécurisée');
+    expect(mapLabel('Hot Potato')).toBe("C'est chaud patate");
+    expect(mapLabel('Kaboom Canyon')).toBe('Canyon boum-boum');
+    expect(mapLabel('Bridge Too Far')).toBe('Pont au loin');
+    expect(mapLabel('Jedna')).toBe('Jedna');
+
+    // Prime
+    expect(mapLabel('Shooting Star')).toBe('Étoile filante');
+    expect(mapLabel('Hideout')).toBe('Cachette secrète');
+    expect(mapLabel('Layer Cake')).toBe('Mille-feuilles');
+    expect(mapLabel('Dry Season')).toBe('Saison sèche');
+    expect(mapLabel('Canal Grande')).toBe('Grand Canal');
+    expect(mapLabel('Snake Prairie')).toBe('Prairie aux serpents');
+
+    // Zone réservée
+    expect(mapLabel('Dueling Beetles')).toBe('Duel de scarabées');
+    expect(mapLabel('Ring of Fire')).toBe('Cercle de feu');
+    expect(mapLabel('Open Business')).toBe("C'est ouvert !");
+    expect(mapLabel('Parallel Plays')).toBe('Stratégies parallèles');
+
+    // Hors-jeu
+    expect(mapLabel("Belle's Rock")).toBe('Rocher de la belle');
+    expect(mapLabel('Goldarm Gulch')).toBe("Ravin du bras d'or");
+    expect(mapLabel('Flaring Phoenix')).toBe('Phénix flamboyant');
+    expect(mapLabel('Out in the Open')).toBe('À découvert');
+    expect(mapLabel('New Horizons')).toBe('Nouveaux horizons');
+
+    // Survivant
+    expect(mapLabel('Rockwall Brawl')).toBe("Brawl n'roll");
+    expect(mapLabel('Skull Creek')).toBe('Crique du crâne');
+    expect(mapLabel('Cavern Churn')).toBe('Caverne bouillonnante');
+    expect(mapLabel('Double Trouble')).toBe('Double danger');
+    expect(mapLabel('Feast or Famine')).toBe('Festin ou famine');
+
+    // Tolérance apostrophes typographiques et casse
+    expect(mapLabel('Belle’s Rock')).toBe('Rocher de la belle');
+    expect(mapLabel('hard rock mine')).toBe('Mine hard-rock');
+
+    // Fallback pour map inconnue ou vide
+    expect(mapLabel('Map Personnalisée 42')).toBe('Map Personnalisée 42');
+    expect(mapLabel(null)).toBeNull();
+    expect(mapLabel(undefined)).toBeNull();
   });
 });
 

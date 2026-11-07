@@ -8,7 +8,7 @@ import { useStatus } from '../lib/api';
 // Documentation intégrée. À TENIR À JOUR : toute fonctionnalité ajoutée, modifiée
 // ou retirée dans l'app doit être reflétée ici (voir CLAUDE.md).
 
-const DOC_VERSION = '1.3.0';
+const DOC_VERSION = '1.5.0';
 
 interface Section {
   id: string;
@@ -176,6 +176,7 @@ const SECTIONS: Section[] = [
             [<PageLink to="trophees">Trophées</PageLink>, 'Courbe des trophées, variation par jour, prestige, séries de victoires.'],
             [<PageLink to="combats">Combats</PageLink>, 'Historique filtrable de toutes tes parties et statistiques détaillées.'],
             [<PageLink to="brawlers">Brawlers</PageLink>, 'Collection, équipement, coût restant et priorités d’amélioration.'],
+            [<PageLink to="gloire">Gloire</PageLink>, 'Voie de la Gloire cosmique planète après planète, crédits requis, paliers et cosmétiques débloqués.'],
             [<PageLink to="rotation">Rotation</PageLink>, 'Les maps du moment et les brawlers conseillés d’après ton historique.'],
             [<PageLink to="objectifs">Objectifs</PageLink>, 'Tes caps (trophées, rang, points…) avec une date d’arrivée estimée.'],
             [<PageLink to="comparer">Comparer</PageLink>, 'Plusieurs joueurs côte à côte.'],
@@ -205,19 +206,45 @@ const SECTIONS: Section[] = [
             fond blanc ; un pseudo blanc (couleur par défaut) s’affiche en noir.
           </li>
           <li>
-            <strong>Rangs Ranked</strong> : chaque rang est accompagné de son emblème officiel (Bronze I … Pro).
+            <strong>Rangs Ranked</strong> : chaque rang est accompagné de son emblème officiel (Bronze I … Pro) et
+            utilise sa couleur authentique du jeu : Mythique en violet vif, Légendaire en rouge vif / écarlate profond,
+            Maître en or solaire.
           </li>
           <li>
             <strong>Modes de jeu</strong> : icône officielle du mode ; dans la Rotation, le nom du mode prend sa couleur du jeu.
           </li>
           <li>
-            <strong>Gloire</strong> : palier traduit (« Gloire météorique I ») avec une pastille aux couleurs de son emblème
-            dans le jeu : Terre (bleu et vert), Lune (gris), Mars (rouge), Saturne (orange), Soleil (jaune), Météore
-            (sphère sombre, contour de flammes, texte rouge)… Survole le palier pour voir tes points de gloire.
+            <strong>Gloire</strong> : palier traduit (« Gloire météorique I ») avec l'icône officielle et une pastille
+            sobre aux couleurs de son emblème céleste. La flèche en biais ↗ permet de basculer instantanément vers
+            la Voie de la Gloire.
           </li>
           <li>
             <strong>Rareté des brawlers</strong> : pastille aux couleurs du jeu (vert rare, bleu super rare, violet épique,
             rouge mythique, jaune légendaire…).
+          </li>
+        </List>
+        <H3>Animations et design Data Viz</H3>
+        <P>
+          Le dashboard adopte un système général d’animations d’entrée sobre et épuré, inspiré des dashboards de data
+          visualisation contemporains :
+        </P>
+        <List>
+          <li>
+            <strong>Cadencement en cascade (stagger)</strong> : les tuiles statistiques (440 ms) et les cartes de graphiques
+            (500 ms) s’élèvent délicatement (translation verticale fine de 6 à 8 px avec fondu) de façon échelonnée (40 ms par tuile)
+            pour guider naturellement le regard.
+          </li>
+          <li>
+            <strong>Chiffres vivants (KPIs)</strong> : le défilement numérique dynamique (~950 ms) s’étend plus longtemps
+            que l’entrée du cadre (~440 ms) pour une sensation fluide et mesurée (décélération quartique).
+          </li>
+          <li>
+            <strong>Tracé progressif des courbes</strong> : les tracés de graphiques temporels et les mini-courbes (sparklines)
+            se déploient de gauche à droite sur ~1 100 ms, se poursuivant harmonieusement après la mise en place du cadre.
+          </li>
+          <li>
+            <strong>Accessibilité native</strong> : toutes les animations respectent scrupuleusement la préférence
+            d’accessibilité du système (<code>prefers-reduced-motion: reduce</code>) en désactivant instantanément tout mouvement.
           </li>
         </List>
         <P>
@@ -500,6 +527,60 @@ const SECTIONS: Section[] = [
           <PageLink to="calcul-couts">barème</PageLink>). Les gears et les buffies sont affichés mais pas chiffrés, faute de
           prix fixe fiable.
         </P>
+      </>
+    ),
+  },
+  {
+    id: 'gloire',
+    title: 'Voie de la Gloire',
+    group: 'Pages',
+    keywords: 'gloire fame road progression planètes paliers météore récompenses cosmétiques battle cards icônes émoticônes crédits',
+    body: (
+      <>
+        <P>
+          La <strong>Voie de la Gloire</strong> (« Fame Road ») est le système de progression cosmique de Brawl Stars réservé
+          aux joueurs ayant débloqué tous les brawlers. Tous les crédits supplémentaires obtenus (via le Brawl Pass, les
+          trophées, la maîtrise ou les récompenses Starr) sont automatiquement convertis en points de gloire.
+        </P>
+        <H3>Les 8 paliers célestes</H3>
+        <P>
+          La progression traverse 8 corps célestes successifs, chacun composé de 3 sous-niveaux (I, II et III) :
+        </P>
+        <List>
+          <li><strong>Gloire mondiale (Terre)</strong> : 2 000 points par niveau (Niv. I dès tous les brawlers débloqués).</li>
+          <li><strong>Gloire lunaire (Lune)</strong> : 3 200 points par niveau (à partir de 6 000 pts).</li>
+          <li><strong>Gloire martienne (Mars)</strong> : 4 500 points par niveau (à partir de 15 600 pts).</li>
+          <li><strong>Gloire saturnienne (Saturne)</strong> : 8 000 points par niveau (à partir de 29 100 pts).</li>
+          <li><strong>Gloire solaire (Soleil)</strong> : 12 000 points par niveau (à partir de 53 100 pts).</li>
+          <li><strong>Gloire météorique (Météore)</strong> : 20 000 points par niveau (à partir de 89 100 pts).</li>
+          <li><strong>Gloire extraterrestre (Alien)</strong> : 50 000 points par niveau (à partir de 149 100 pts).</li>
+          <li><strong>Gloire Starr Force (Starr Force)</strong> : 75 000 points par niveau (à partir de 299 100 pts).</li>
+        </List>
+        <H3>Récompenses cosmétiques débloquées</H3>
+        <P>
+          À chaque niveau franchi d’un palier, une récompense cosmétique exclusive est débloquée :
+        </P>
+        <List>
+          <li><strong>Niveau I</strong> : <strong>Fond de carte de combat</strong> (Battle Card Background) thématique.</li>
+          <li><strong>Niveau II</strong> : <strong>Icône de profil</strong> planétaire avec son emblème officiel.</li>
+          <li><strong>Niveau III</strong> : <strong>Émoticône de collection</strong> (Pin Collector) animée aux reflets dorés.</li>
+        </List>
+        <H3>Repères de la page</H3>
+        <List>
+          <li>
+            <strong>Piste spatiale interactive</strong> : défilement le long de la voie cosmique avec visualisation
+            de chaque planète, indicateur « Tu es ici », jauge de crédits en direct et état de déblocage.
+          </li>
+          <li>
+            <strong>Simulateur de Carte de Combat</strong> : clique sur un fond de carte ou une récompense pour admirer
+            ta carte de combat Brawl Stars en situation réelle avec les illustrations officielles (fonds de cartes,
+            icônes d'avatar et émoticônes pins du jeu), ton pseudo stylisé, ton brawler favori et ton rang.
+          </li>
+          <li>
+            <strong>Accès rapide</strong> : clique sur la flèche en biais ↗ à côté de ton palier sur la page d’Accueil
+            ou sur l’onglet « Gloire » du menu pour ouvrir cette interface.
+          </li>
+        </List>
       </>
     ),
   },
@@ -1166,6 +1247,39 @@ const SECTIONS: Section[] = [
     keywords: 'versions changelog nouveautés',
     body: (
       <>
+        <H3>1.5.0</H3>
+        <List>
+          <li>
+            <strong>Animations Data Viz épurées</strong> : système général d’animation d’entrée avec cadencement en cascade (stagger) sur les tuiles KPI et les conteneurs de graphiques.
+          </li>
+          <li>
+            <strong>Chiffres KPI dynamiques</strong> : incrémentation progressive fluide des scores, trophées, pourcentages et ratios via un compteur animé (~950 ms) avec décélération quartique soignée.
+          </li>
+          <li>
+            <strong>Tracé dynamique des courbes</strong> : révélation progressive de gauche à droite des courbes de graphiques temporels et mini-courbes (sparklines) sur ~1 100 ms, se poursuivant naturellement après la stabilisation des cadres.
+          </li>
+          <li>
+            <strong>Fidélité visuelle officielle</strong> : couleurs authentiques des rangs Ranked (Mythique en violet, Légendaire en rouge/bordeaux, Maître en jaune or), icônes officielles de gloire et des planètes, design sobre et épuré.
+          </li>
+          <li>
+            <strong>Accessibilité</strong> : prise en charge complète du mode mouvements réduits (<code>prefers-reduced-motion: reduce</code>) qui désactive instantanément toutes les animations.
+          </li>
+        </List>
+        <H3>1.4.0</H3>
+        <List>
+          <li>
+            Nouvelle page Voie de la Gloire (« Fame Road ») : parcours cosmique planète après planète (Terre, Lune, Mars, Saturne, Soleil, Météore, Alien, Starr Force).
+          </li>
+          <li>
+            Affichage dynamique de la progression, points de gloire nécessaires, niveau actuel et récompenses débloquées (fonds de carte, icônes de profil, pins collector).
+          </li>
+          <li>
+            Accès direct depuis le badge de gloire sur l’Accueil grâce à l’icône de flèche en biais ↗ interactive.
+          </li>
+          <li>
+            Simulateur de Carte de Combat (Battle Card) intégré pour admirer sa carte personnalisée en situation de match.
+          </li>
+        </List>
         <H3>1.3.0</H3>
         <List>
           <li>

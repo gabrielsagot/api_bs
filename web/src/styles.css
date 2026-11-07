@@ -85,3 +85,143 @@
 .recharts-surface:focus {
   outline: none;
 }
+
+/* ── Animations d'entrée Data Viz (KPIs & Graphiques) ─────────
+   Règle générale, sobre et épurée : translation verticale fine (6-8px),
+   courbe de décélération fluide (Apple/Linear) et orchestration
+   en cascade (stagger) pour un rendu dashboard de data viz. */
+
+:root {
+  --ease-dataviz: cubic-bezier(0.16, 1, 0.3, 1);
+  --duration-kpi: 440ms;
+  --duration-chart: 500ms;
+  --duration-kpi-number: 950ms;
+  --duration-chart-draw: 1100ms;
+  --stagger-kpi: 40ms;
+}
+
+@keyframes datavizKpiEnter {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes datavizChartEnter {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes sparklineDraw {
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+/* Règle générale pour toutes les tuiles KPI */
+.stat-tile,
+[data-kpi] {
+  animation: datavizKpiEnter var(--duration-kpi) var(--ease-dataviz) both;
+  will-change: transform, opacity;
+}
+
+/* Échelonnage (stagger) subtil et orchestré sur les grilles de KPIs */
+.stat-tile:nth-child(1), [data-kpi]:nth-child(1) { animation-delay: calc(var(--stagger-kpi) * 1); }
+.stat-tile:nth-child(2), [data-kpi]:nth-child(2) { animation-delay: calc(var(--stagger-kpi) * 2); }
+.stat-tile:nth-child(3), [data-kpi]:nth-child(3) { animation-delay: calc(var(--stagger-kpi) * 3); }
+.stat-tile:nth-child(4), [data-kpi]:nth-child(4) { animation-delay: calc(var(--stagger-kpi) * 4); }
+.stat-tile:nth-child(5), [data-kpi]:nth-child(5) { animation-delay: calc(var(--stagger-kpi) * 5); }
+.stat-tile:nth-child(6), [data-kpi]:nth-child(6) { animation-delay: calc(var(--stagger-kpi) * 6); }
+.stat-tile:nth-child(7), [data-kpi]:nth-child(7) { animation-delay: calc(var(--stagger-kpi) * 7); }
+.stat-tile:nth-child(8), [data-kpi]:nth-child(8) { animation-delay: calc(var(--stagger-kpi) * 8); }
+.stat-tile:nth-child(n+9), [data-kpi]:nth-child(n+9) { animation-delay: calc(var(--stagger-kpi) * 9); }
+
+/* Règle générale pour les conteneurs de graphiques */
+.chart-card,
+[data-chart] {
+  animation: datavizChartEnter var(--duration-chart) var(--ease-dataviz) both;
+  animation-delay: 80ms;
+  will-change: transform, opacity;
+}
+
+/* Sparklines SVG : tracé progressif de la courbe (dure plus longtemps que le cadre) */
+.sparkline-path {
+  stroke-dasharray: 1;
+  stroke-dashoffset: 1;
+  animation: sparklineDraw var(--duration-chart-draw) var(--ease-dataviz) forwards;
+  animation-delay: 100ms;
+}
+
+/* Respect de l'accessibilité : désactivation si mouvements réduits demandés */
+@media (prefers-reduced-motion: reduce) {
+  .stat-tile,
+  [data-kpi],
+  .chart-card,
+  [data-chart],
+  .animate-popover-in,
+  .animate-sheet-up,
+  .animate-fade-overlay {
+    animation: none !important;
+    transform: none !important;
+    opacity: 1 !important;
+  }
+  .sparkline-path {
+    stroke-dashoffset: 0 !important;
+    animation: none !important;
+  }
+}
+
+/* ── Animations du sélecteur de compte multi-profils ── */
+@keyframes popoverIn {
+  from {
+    opacity: 0;
+    transform: scale(0.96) translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+@keyframes sheetUp {
+  from {
+    transform: translateY(100%);
+  }
+  to {
+    transform: translateY(0);
+  }
+}
+
+@keyframes fadeInOverlay {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.animate-popover-in {
+  animation: popoverIn 180ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  transform-origin: top left;
+}
+
+.animate-sheet-up {
+  animation: sheetUp 240ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.animate-fade-overlay {
+  animation: fadeInOverlay 180ms ease-out forwards;
+}
+
+

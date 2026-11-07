@@ -2,6 +2,7 @@ import clsx from 'clsx';
 import { ArrowDown, ArrowUp, Star } from 'lucide-react';
 import { useMemo, useState, type ReactNode } from 'react';
 import { Link } from 'react-router';
+import { mapLabel } from '../../../shared/labels';
 import type { BreakdownRow } from '../../../shared/types';
 import { fmtInt, fmtPct, fmtSigned } from '../lib/format';
 import { BrawlerAvatar } from './avatars';
@@ -163,7 +164,7 @@ function BreakdownLabel({ row, kind, playerSlug }: { row: BreakdownRow; kind: Br
   if (kind === 'map') {
     return (
       <span className="block min-w-0">
-        <span className="block truncate font-medium">{row.label}</span>
+        <span className="block truncate font-medium">{mapLabel(row.label)}</span>
         <ModeLabel mode={row.sub} size={13} className="flex text-[12px] text-ink-2" />
       </span>
     );
@@ -217,7 +218,7 @@ export function BreakdownTable({
       key: 'label',
       header: firstHeader ?? headers[kind],
       render: (row) => <BreakdownLabel row={row} kind={kind} playerSlug={playerSlug} />,
-      sort: (row) => row.label,
+      sort: (row) => (kind === 'map' ? mapLabel(row.label) : row.label),
       className: 'max-w-[220px]',
     },
     { key: 'games', header: 'Parties', align: 'right', render: (row) => fmtInt(row.games), sort: (row) => row.games },

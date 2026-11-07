@@ -2,11 +2,11 @@ import clsx from 'clsx';
 import {
   BookOpen,
   CalendarClock,
-  ChevronDown,
   CircleAlert,
   Ellipsis,
   House,
   LayoutGrid,
+  Crown,
   LoaderCircle,
   Medal,
   Radio,
@@ -21,13 +21,11 @@ import {
   type LucideIcon,
 } from 'lucide-react';
 import { useEffect, useState } from 'react';
-import { Link, NavLink, Outlet, useLocation, useNavigate, useParams } from 'react-router';
-import type { PlayerListItem } from '../../../shared/types';
+import { Link, NavLink, Outlet, useLocation, useParams } from 'react-router';
 import { usePlayers, useRefresh, useStatus } from '../lib/api';
-import { fmtInt, fmtRelative } from '../lib/format';
+import { fmtRelative } from '../lib/format';
 import { useNow } from '../lib/hooks';
-import { PlayerIcon } from './avatars';
-import { PlayerName } from './bs';
+import { PlayerSwitcher } from './PlayerSwitcher';
 
 interface NavItem {
   to: string;
@@ -44,6 +42,7 @@ const NAV: NavItem[] = [
   { to: 'trophees', label: 'Trophées', icon: Trophy, scoped: true },
   { to: 'combats', label: 'Combats', icon: Swords, scoped: true },
   { to: 'brawlers', label: 'Brawlers', icon: LayoutGrid, scoped: true },
+  { to: 'gloire', label: 'Gloire', icon: Crown, scoped: true },
   { to: 'rotation', label: 'Rotation', icon: CalendarClock, scoped: true },
   { to: 'objectifs', label: 'Objectifs', icon: Target, scoped: true },
   { to: '/comparer', label: 'Comparer', icon: Users, scoped: false },
@@ -56,43 +55,6 @@ const MOBILE_TABS = ['', 'direct', 'ranked', 'draft'];
 function hrefFor(item: NavItem, slug: string | undefined): string {
   if (!item.scoped) return item.to;
   return slug ? `/p/${slug}${item.to ? `/${item.to}` : ''}` : '/';
-}
-
-/** Sélecteur de joueur : un <select> natif (roue iOS sur iPhone) sous un habillage sobre. */
-function PlayerSwitcher({ players, current, compact = false }: { players: PlayerListItem[]; current?: PlayerListItem; compact?: boolean }) {
-  const navigate = useNavigate();
-  const location = useLocation();
-  if (!current) return null;
-  const switchTo = (slug: string) => {
-    const rest = location.pathname.match(/^\/p\/[^/]+(\/[^/]+)?/)?.[1] ?? '';
-    navigate(`/p/${slug}${rest}`);
-  };
-  return (
-    <label className={clsx('relative flex min-w-0 cursor-pointer items-center gap-2.5 rounded-xl', compact ? 'py-1' : 'bg-fill px-2.5 py-2 hover:bg-[#ebebf0]')}>
-      <PlayerIcon iconId={current.iconId} name={current.name} size={compact ? 30 : 34} />
-      <span className="min-w-0 flex-1">
-        <PlayerName name={current.name} color={current.nameColor} nameStyle={current.nameStyle} className="block truncate text-[14px] font-semibold leading-tight" />
-        <span className="block truncate text-[12px] text-ink-2">
-          {current.trophies !== null ? `${fmtInt(current.trophies)} trophées` : current.tag}
-        </span>
-      </span>
-      {players.length > 1 && <ChevronDown className="size-4 shrink-0 text-ink-2" />}
-      {players.length > 1 && (
-        <select
-          aria-label="Changer de joueur"
-          value={current.slug}
-          onChange={(event) => switchTo(event.target.value)}
-          className="absolute inset-0 cursor-pointer opacity-0"
-        >
-          {players.map((p) => (
-            <option key={p.slug} value={p.slug}>
-              {p.name} ({p.tag})
-            </option>
-          ))}
-        </select>
-      )}
-    </label>
-  );
 }
 
 function SyncStatus({ compact = false }: { compact?: boolean }) {

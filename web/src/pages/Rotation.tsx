@@ -1,4 +1,4 @@
-import { modeLabel } from '../../../shared/labels';
+import { mapLabel, modeLabel } from '../../../shared/labels';
 import type { RotationEventDto } from '../../../shared/types';
 import { BrawlerAvatar, MapImage } from '../components/avatars';
 import { ModeLabel, modeTextStyle } from '../components/bs';
@@ -15,7 +15,7 @@ function EventCard({ event, now }: { event: RotationEventDto; now: number }) {
         <MapImage eventId={event.eventId} className="size-14 shrink-0" />
         <div className="min-w-0 flex-1">
           <ModeLabel mode={event.mode} size={16} className="flex text-[12px] font-semibold" style={modeTextStyle(event.mode)} />
-          <div className="truncate text-[17px] font-semibold tracking-tight">{event.map ?? modeLabel(event.mode)}</div>
+          <div className="truncate text-[17px] font-semibold tracking-tight">{mapLabel(event.map) ?? modeLabel(event.mode)}</div>
           <div className="mt-0.5 text-[12px] text-ink-3">
             {upcoming ? `Commence dans ${fmtRemaining(event.startTime, now)}` : `Se termine dans ${fmtRemaining(event.endTime, now)}`}
           </div>

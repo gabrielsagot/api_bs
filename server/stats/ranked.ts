@@ -205,7 +205,7 @@ export function rankedCore(
  */
 export function mapPicks(battles: readonly StoredBattle[], minGames = 2): MapPicksDto[] {
   return breakdown(battles, byMapKey, { minGames }).map((mapRow) => {
-    const onMap = battles.filter((b) => b.map === mapRow.label && b.mode === mapRow.sub);
+    const onMap = battles.filter((b) => b.map && `${b.mode}|${b.map}` === mapRow.key);
     const prior = mapRow.winRate ?? 0.5;
     const best = breakdown(onMap, byBrawlerKey)
       .filter((row) => row.wins + row.losses >= 2 && row.wins > 0)

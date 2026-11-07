@@ -86,12 +86,28 @@ export function nameSolidColor(apiColor: string | null | undefined, styleId: str
 
 // ── Rangs Ranked ──────────────────────────────────────────────
 
-/** Couleur de chaque famille de rang, reprise des emblèmes du jeu. */
-const TIER_COLORS = ['#e8862a', '#8f9be0', '#f2b200', '#1fb8e8', '#c32fd8', '#e53935', '#a33a12', '#e0a100'];
+/**
+ * Couleurs officielles de chaque famille de rang Brawl Stars Ranked :
+ * 0: Bronze     (#c86a2b - cuivre bronze chaud)
+ * 1: Argent     (#7988c8 - acier argent bleuté)
+ * 2: Or         (#e5a500 - or éclatant)
+ * 3: Diamant    (#00a8e8 - cyan diamant vif)
+ * 4: Mythique   (#b822d6 - violet / pourpre officiel)
+ * 5: Légendaire (#dc2626 - rouge écarlate officiel)
+ * 6: Masters    (#be123c - rubis masters officiel)
+ * 7: Pro        (#d97706 - or stellaire pro)
+ */
+const TIER_COLORS = ['#c86a2b', '#7988c8', '#e5a500', '#00a8e8', '#b822d6', '#dc2626', '#be123c', '#d97706'];
 
 export function tierColor(tier: number | null | undefined): string | null {
   if (!isKnownTier(tier)) return null;
   return TIER_COLORS[Math.min(Math.floor((tier - 1) / 3), TIER_COLORS.length - 1)];
+}
+
+/** Couleur de texte lisible et contrastée pour un rang (violet pour mythique, rouge pour légendaire, etc.). */
+export function tierTextColor(tier: number | null | undefined): string | undefined {
+  const color = tierColor(tier);
+  return color ? readableColor(color, 3.5) : undefined;
 }
 
 /** Emblème officiel du rang (Bronze I = 58000000 … Pro = 58000021) sur le CDN Brawlify. */

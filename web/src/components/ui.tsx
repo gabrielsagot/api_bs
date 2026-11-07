@@ -1,7 +1,7 @@
 import clsx from 'clsx';
 import { ArrowDownRight, ArrowUpRight, ChevronDown, CircleHelp, LoaderCircle } from 'lucide-react';
 import { Link } from 'react-router';
-import type { ButtonHTMLAttributes, ReactNode } from 'react';
+import { useEffect, useRef, useState, type ButtonHTMLAttributes, type ReactNode } from 'react';
 import type { Outcome, SetOutcome } from '../../../shared/types';
 import { fmtPct } from '../lib/format';
 
@@ -211,6 +211,150 @@ export function Delta({
   );
 }
 
+interface ParsedNumeric {
+  prefix: string;
+  targetNum: number;
+  decCount: number;
+  hasComma: boolean;
+  hasThousandsSep: boolean;
+  suffix: string;
+}
+
+const frIntl = new Intl.NumberFormat('fr-FR', { maximumFractionDigits: 0 });
+
+function parseNumeric(val: unknown): ParsedNumeric | null {
+  if (typeof val === 'number') {
+    if (!Number.isFinite(val)) return null;
+    return {
+      prefix: val < 0 ? '−' : '',
+      targetNum: Math.abs(val),
+      decCount: 0,
+      hasComma: false,
+      hasThousandsSep: false,
+      suffix: '',
+    };
+  }
+  if (typeof val !== 'string') return null;
+  const trimmed = val.trim();
+  if (!trimmed) return null;
+
+  // Match optional prefix (+, -, −), numeric body with optional spaces/commas/dots, and optional suffix
+  const match = trimmed.match(/^([+\-−]?)\s*([\d\s\u00a0\u202f]+(?:[.,]\d+)?)(.*)$/u);
+  if (!match || !match[2]) return null;
+
+  const rawNumStr = match[2];
+  const cleanDigits = rawNumStr.replace(/[\s\u00a0\u202f]/g, '').replace(',', '.');
+  const targetNum = parseFloat(cleanDigits);
+  if (isNaN(targetNum)) return null;
+
+  const hasComma = rawNumStr.includes(',');
+  const decPart = rawNumStr.split(/[.,]/)[1] || '';
+  const decCount = decPart.length;
+  const hasThousandsSep = /[\s\u00a0\u202f]/.test(rawNumStr);
+
+  return {
+    prefix: match[1] ?? '',
+    targetNum,
+    decCount,
+    hasComma,
+    hasThousandsSep,
+    suffix: match[3] ?? '',
+  };
+}
+
+function formatIntermediateValue(parsed: ParsedNumeric, currentVal: number): string {
+  let formatted: string;
+  if (parsed.decCount > 0) {
+    formatted = currentVal.toFixed(parsed.decCount);
+    if (parsed.hasComma) {
+      formatted = formatted.replace('.', ',');
+    }
+  } else {
+    const rounded = Math.round(currentVal);
+    if (parsed.hasThousandsSep) {
+      formatted = frIntl.format(rounded);
+    } else {
+      formatted = String(rounded);
+    }
+  }
+  return `${parsed.prefix}${formatted}${parsed.suffix}`;
+}
+
+export function AnimatedKpiValue({
+  value,
+  duration = 950,
+  className,
+}: {
+  value: ReactNode;
+  duration?: number;
+  className?: string;
+}) {
+  const [display, setDisplay] = useState<string | null>(() => {
+    if (typeof window === 'undefined') return null;
+    if (window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) return null;
+    const parsed = parseNumeric(value);
+    if (!parsed) return null;
+    return formatIntermediateValue(parsed, 0);
+  });
+  const prevNumRef = useRef<number | null>(null);
+
+  useEffect(() => {
+    if (typeof value !== 'string' && typeof value !== 'number') {
+      setDisplay(null);
+      prevNumRef.current = null;
+      return;
+    }
+
+    if (typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      setDisplay(null);
+      prevNumRef.current = null;
+      return;
+    }
+
+    const parsed = parseNumeric(value);
+    if (!parsed) {
+      setDisplay(null);
+      prevNumRef.current = null;
+      return;
+    }
+
+    const startNum = prevNumRef.current ?? 0;
+    const targetNum = parsed.targetNum;
+    prevNumRef.current = targetNum;
+
+    if (startNum === targetNum && display === null) {
+      return;
+    }
+
+    let rafId: number;
+    const startTime = performance.now();
+
+    const tick = (now: number) => {
+      const elapsed = now - startTime;
+      const progress = Math.min(1, elapsed / duration);
+      // Smooth quartic ease-out
+      const eased = 1 - Math.pow(1 - progress, 4);
+
+      if (progress >= 1) {
+        setDisplay(null);
+      } else {
+        const currentVal = startNum + (targetNum - startNum) * eased;
+        setDisplay(formatIntermediateValue(parsed, currentVal));
+        rafId = requestAnimationFrame(tick);
+      }
+    };
+
+    rafId = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(rafId);
+  }, [value, duration]);
+
+  if (display !== null) {
+    return <span className={clsx('tnum inline-block', className)}>{display}</span>;
+  }
+
+  return <>{value}</>;
+}
+
 export function StatTile({
   label,
   value,
@@ -225,9 +369,11 @@ export function StatTile({
   className?: string;
 }) {
   return (
-    <Card className={clsx('flex flex-col', className)}>
+    <Card className={clsx('stat-tile flex flex-col', className)}>
       <div className="text-[13px] font-medium text-ink-2">{label}</div>
-      <div className="mt-2 break-words text-[22px] font-semibold leading-tight tracking-[-0.02em] sm:text-[26px] lg:text-[28px]">{value}</div>
+      <div className="mt-2 break-words text-[22px] font-semibold leading-tight tracking-[-0.02em] sm:text-[26px] lg:text-[28px]">
+        <AnimatedKpiValue value={value} />
+      </div>
       {(sub || delta) && (
         <div className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[13px] text-ink-2">
           {delta}

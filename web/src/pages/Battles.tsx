@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { CATEGORY_LABELS, modeLabel, type BattleCategory } from '../../../shared/labels';
+import { CATEGORY_LABELS, mapLabel, modeLabel, type BattleCategory } from '../../../shared/labels';
 import { BrawlerAvatar } from '../components/avatars';
 import { BattleRow } from '../components/battles';
 import { BreakdownTable } from '../components/tables';
@@ -90,7 +90,12 @@ export function BattlesPage() {
           label="Map"
           value={map}
           onChange={(value) => setMap(value || null)}
-          options={[{ value: '', label: 'Toutes les maps' }, ...options.maps.map((m) => ({ value: m, label: m }))]}
+          options={[
+            { value: '', label: 'Toutes les maps' },
+            ...options.maps
+              .map((m) => ({ value: m, label: mapLabel(m) }))
+              .sort((a, b) => a.label.localeCompare(b.label)),
+          ]}
         />
         {hasFilters && (
           <Button

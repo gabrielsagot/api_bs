@@ -1,7 +1,7 @@
 import clsx from 'clsx';
 import { RotateCcw, Search, X } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
-import { modeLabel } from '../../../shared/labels';
+import { mapLabel, modeLabel } from '../../../shared/labels';
 import type { DraftBrawlerDto, DraftPickDto, DraftReasonDto } from '../../../shared/types';
 import { BrawlerAvatar, MapImage } from '../components/avatars';
 import { Button, Card, CardHeader, DocLink, EmptyState, ErrorState, LoadingState, PageHeader, Segmented } from '../components/ui';
@@ -281,7 +281,7 @@ export function DraftPage() {
                   >
                     {maps.map((m) => (
                       <option key={`${m.mode}|${m.map}`} value={`${m.mode}|${m.map}`}>
-                        {m.map} · {modeLabel(m.mode)} ({fmtInt(m.matches)} parties)
+                        {mapLabel(m.map)} · {modeLabel(m.mode)} ({fmtInt(m.matches)} parties)
                       </option>
                     ))}
                   </select>

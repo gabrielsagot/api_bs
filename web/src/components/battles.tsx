@@ -1,10 +1,11 @@
 import clsx from 'clsx';
 import { ChevronDown, Star } from 'lucide-react';
 import { useState } from 'react';
-import { battleTypeLabel, modeLabel, tierName } from '../../../shared/labels';
+import { battleTypeLabel, mapLabel, modeLabel } from '../../../shared/labels';
 import type { BattleDto, ParticipantDto, RankedSetDto } from '../../../shared/types';
 import { fmtDateTime, fmtDuration, fmtRelative, fmtSigned } from '../lib/format';
-import { BrawlerAvatar, ModeIcon, RankIcon } from './avatars';
+import { BrawlerAvatar, ModeIcon } from './avatars';
+import { TierLabel } from './bs';
 import { EloChange } from './ranked';
 import { Pill, ResultBadge, SetBadge } from './ui';
 
@@ -31,7 +32,7 @@ export function SetRow({ set, now, compact = false }: { set: RankedSetDto; now: 
       {set.eloChange !== null && <EloChange value={set.eloChange} className="w-9 shrink-0 text-right text-[13px]" />}
       <BrawlerAvatar id={brawler?.brawlerId} name={brawler?.brawlerName} size={32} />
       <div className="min-w-0 flex-1">
-        <div className="truncate text-[14px] font-medium">{set.map ?? modeLabel(set.mode)}</div>
+        <div className="truncate text-[14px] font-medium">{mapLabel(set.map) ?? modeLabel(set.mode)}</div>
         <div className="flex min-w-0 items-center gap-1 text-[12px] text-ink-2">
           <ModeIcon mode={set.mode} size={14} />
           <span className="truncate">
@@ -41,8 +42,7 @@ export function SetRow({ set, now, compact = false }: { set: RankedSetDto; now: 
           {set.tier !== null && (
             <>
               <span aria-hidden>·</span>
-              <RankIcon tier={set.tier} size={14} />
-              <span className="shrink-0">{tierName(set.tier)}</span>
+              <TierLabel tier={set.tier} size={14} className="shrink-0" />
             </>
           )}
         </div>
@@ -98,7 +98,7 @@ export function BattleRow({ battle, now }: { battle: BattleDto; now: number }) {
         <BrawlerAvatar id={battle.brawlerId} name={battle.brawlerName} size={32} />
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-1.5">
-            <span className="truncate text-[14px] font-medium">{battle.map ?? modeLabel(battle.mode)}</span>
+            <span className="truncate text-[14px] font-medium">{mapLabel(battle.map) ?? modeLabel(battle.mode)}</span>
             {battle.starPlayer && <Star className="size-3.5 shrink-0 fill-[#eda100] text-[#eda100]" aria-label="Star player" />}
           </div>
           <div className="flex min-w-0 items-center gap-1 text-[12px] text-ink-2">

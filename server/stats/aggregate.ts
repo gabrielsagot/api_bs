@@ -1,4 +1,4 @@
-import { battleCategory, titleCase } from '../../shared/labels';
+import { battleCategory, mapLabel, titleCase } from '../../shared/labels';
 import type { BreakdownRow, Outcome, SessionDto, StreakDto, WinLoss } from '../../shared/types';
 import type { StoredBattle } from './normalize';
 
@@ -100,7 +100,7 @@ export const byBrawlerKey = (battle: StoredBattle): GroupKey | null =>
     : { key: String(battle.brawlerId), label: titleCase(battle.brawlerName), id: battle.brawlerId };
 
 export const byMapKey = (battle: StoredBattle): GroupKey | null =>
-  battle.map ? { key: `${battle.mode}|${battle.map}`, label: battle.map, sub: battle.mode } : null;
+  battle.map ? { key: `${battle.mode}|${battle.map}`, label: mapLabel(battle.map), sub: battle.mode } : null;
 
 export const byModeKey = (battle: StoredBattle): GroupKey => ({ key: battle.mode, label: battle.mode });
 

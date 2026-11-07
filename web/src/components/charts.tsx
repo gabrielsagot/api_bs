@@ -138,7 +138,7 @@ export function ChartCard({
 }) {
   const [view, setView] = useState<'chart' | 'table'>('chart');
   return (
-    <Card className={className}>
+    <Card className={clsx('chart-card', className)}>
       <CardHeader
         title={title}
         subtitle={subtitle}
@@ -275,7 +275,10 @@ export function TimeSeriesChart({
             strokeLinecap="round"
             dot={false}
             activeDot={{ r: 4, fill: color, stroke: CHART.surface, strokeWidth: 2 }}
-            isAnimationActive={false}
+            isAnimationActive={true}
+            animationDuration={1100}
+            animationEasing="ease-out"
+            animationBegin={120}
           />
         </LineChart>
       </ResponsiveContainer>
@@ -347,7 +350,10 @@ export function TierChart({ points, height = 240 }: { points: TierPoint[]; heigh
             strokeWidth={2}
             dot={false}
             activeDot={{ r: 4, fill: CHART.accent, stroke: CHART.surface, strokeWidth: 2 }}
-            isAnimationActive={false}
+            isAnimationActive={true}
+            animationDuration={1100}
+            animationEasing="ease-out"
+            animationBegin={120}
           />
         </LineChart>
       </ResponsiveContainer>
@@ -430,7 +436,15 @@ export function DailyDeltaChart({ days, height = 200 }: { days: DailyDelta[]; he
               ) : null;
             }}
           />
-          <Bar dataKey="delta" maxBarSize={24} shape={(props: BarShapeProps) => <DeltaBar {...props} />} isAnimationActive={false} />
+          <Bar
+            dataKey="delta"
+            maxBarSize={24}
+            shape={(props: BarShapeProps) => <DeltaBar {...props} />}
+            isAnimationActive={true}
+            animationDuration={950}
+            animationEasing="ease-out"
+            animationBegin={100}
+          />
         </BarChart>
       </ResponsiveContainer>
     </div>
@@ -537,7 +551,10 @@ export function MultiSeriesChart({
                 dot={false}
                 connectNulls
                 activeDot={{ r: 4, fill: s.color, stroke: CHART.surface, strokeWidth: 2 }}
-                isAnimationActive={false}
+                isAnimationActive={true}
+                animationDuration={1100}
+                animationEasing="ease-out"
+                animationBegin={120}
               />
             ))}
           </LineChart>
@@ -562,8 +579,17 @@ export function Sparkline({ points, height = 40, color = CHART.accent }: { point
   const scaleY = (y: number) => (y1 === y0 ? height / 2 : height - 3 - ((y - y0) / (y1 - y0)) * (height - 6));
   const d = raw.map((p, i) => `${i ? 'L' : 'M'}${scaleX(xs[i]).toFixed(2)},${scaleY(p.v).toFixed(2)}`).join('');
   return (
-    <svg viewBox={`0 0 ${width} ${height}`} preserveAspectRatio="none" style={{ height }} className="w-full" aria-hidden>
-      <path d={d} fill="none" stroke={color} strokeWidth={2} vectorEffect="non-scaling-stroke" strokeLinejoin="round" />
+    <svg viewBox={`0 0 ${width} ${height}`} preserveAspectRatio="none" style={{ height }} className="sparkline-svg w-full" aria-hidden>
+      <path
+        d={d}
+        fill="none"
+        stroke={color}
+        strokeWidth={2}
+        vectorEffect="non-scaling-stroke"
+        strokeLinejoin="round"
+        pathLength={1}
+        className="sparkline-path"
+      />
     </svg>
   );
 }
